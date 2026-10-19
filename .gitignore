@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+data/raw/
+data/normalized/
+data/long_history/
+data/claim_history/
+data/breadth_research/
+runs/
+dist/
+.coverage
+*.egg-info/
