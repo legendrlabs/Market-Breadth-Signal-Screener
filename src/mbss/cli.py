@@ -7,7 +7,7 @@ from mbss.pipeline import run
 
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description='MBSS v0.1.0 independent signal research; no automated trading')
+    parser=argparse.ArgumentParser(description='MBSS v0.1.1 independent signal research; no automated trading')
     sub=parser.add_subparsers(dest='command',required=True)
     c=sub.add_parser('collect',help='Attempt keyless public price/VIX downloads; never infer NYSE breadth')
     c.add_argument('--input',default='data/normalized');c.add_argument('--start',default='1999-01-01');c.add_argument('--timeout',type=float,default=8)

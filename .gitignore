@@ -11,3 +11,5 @@ dist/
 .coverage
 *.egg-info/
 /release.json
+
+build/

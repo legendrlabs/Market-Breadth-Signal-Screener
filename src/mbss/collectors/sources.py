@@ -54,7 +54,7 @@ def collect(destination,start='2000-01-01',timeout=8):
         name,url,parser=job;begin=time.monotonic();stamp=utc_now()
         attempt={'dataset':name,'source':url,'retrieval_timestamp':stamp}
         try:
-            request=Request(url,headers={'User-Agent':'MBSS/0.1.0 (independent public-data research)'})
+            request=Request(url,headers={'User-Agent':'MBSS/0.1.1 (independent public-data research)'})
             with urlopen(request,timeout=timeout) as response:body=response.read(30_000_000)
             raw_path=raw/(name+('.json' if name!='vix' else '.csv'));raw_path.write_bytes(body)
             frame=parser(body)

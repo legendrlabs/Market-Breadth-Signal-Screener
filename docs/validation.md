@@ -46,3 +46,8 @@ Existing develop checkout and 737467e research reconciliation were resumed; the 
 Six Python release tests failed before the metadata generator existed; Node publication tests failed before the publisher existed. The implemented source provenance/prerelease protection passes Python 53/53 and Node 6/6 tests. Empty-input CLI still reports DATA_HOLD and SAFE_TO_ACT=False.
 
 Ruling: publish only a research prerelease, keeping provider data and reports outside the source tree, as the original deployment plan requires. Incorrect interpretation would overstate trading readiness; manifest and release text retain UNVERIFIED and the hold status. Initial main registration triggers actual collection/report generation so remote execution can be observed.
+
+
+Final publication review: no Critical/Important findings; reviewer independently ran Python 53/53 and Node 6/6, zero skips. Final: minor (deferred): reject a previously published release externally converted from prerelease to stable. The first-publication path always sets prerelease=true; this affects external mutation/retry hardening only.
+
+Actual main execution 39268895856 and v0.1.0 prerelease succeeded. Artifact inspection found the run manifest still used a development-era NOT_PUBLISHED constant despite executing on GitHub. Root cause: publication metadata never consumed the already recorded checkout commit or GitHub run context. Four provenance regressions failed before implementing matching-checkout context; the existing empty-run test also rejects the stale constant. v0.1.1 records only verified matching execution context and uses NOT_CHECKED for unqueried release existence. This does not change signal detection, statistics or trade permission.

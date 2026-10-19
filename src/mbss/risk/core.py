@@ -52,7 +52,7 @@ def daily_assessment(events,data,quality,sessions,calendar_valid=True,risk_confi
         states[signal]={'SIGNAL_STATUS':status,'SIGNAL_DATE':str(event.date.date()) if event else None,
                         'DATA_QUALITY':'PASSED_RESEARCH' if valid else 'DATA_HOLD','SAFE_TO_ACT':False,
                         'CONFIDENCE':'LOW_RESEARCH_ONLY','RISK_FLAGS':list(flags),
-                        'RECOMMENDED_ACTION':'OBSERVE_ONLY','REASON':'v0.1.0 statistics and risk budget not independently validated; no automatic allocation'}
+                        'RECOMMENDED_ACTION':'OBSERVE_ONLY','REASON':'v0.1.1 statistics and risk budget not independently validated; no automatic allocation'}
     overall='DATA_HOLD' if not calendar_valid or not all(s['DATA_QUALITY']=='PASSED_RESEARCH' for s in states.values()) else next((v for v in ('CONFIRMED','WATCH','HISTORICAL_SIGNAL','EXPIRED') if any(s['SIGNAL_STATUS']==v for s in states.values())),'NO_SIGNAL')
     return {'SIGNAL_STATUS':overall,'SIGNAL_DATE':max((s['SIGNAL_DATE'] for s in states.values() if s['SIGNAL_DATE']),default=None),
             'DATA_QUALITY':'DATA_HOLD' if overall=='DATA_HOLD' else 'PASSED_RESEARCH',
