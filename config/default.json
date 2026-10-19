@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "start": "2000-01-01",
+  "seed": 42,
+  "bootstrap_draws": 2000,
+  "months": [1, 3, 6, 12],
+  "cost_bps_per_side": 0,
+  "zbt": {"ema_span": 10, "ema_seed": "sma", "warmup_sessions": 100, "inclusive": false, "max_distance": 10},
+  "expansion_cooldown_sessions": 10,
+  "risk": {"vix_high": 30, "vix_five_session_jump": 0.25, "drawdown_alert": -0.15, "post_signal_reversal": -0.05, "observation_sessions": 20},
+  "capital_allocation_enabled": false,
+  "auto_trading_enabled": false
+}
