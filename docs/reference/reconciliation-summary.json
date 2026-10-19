@@ -1,0 +1,35 @@
+{
+  "A": {
+    "reference_in_overlap": 11,
+    "candidate_in_overlap": 11,
+    "exact_matches": 11,
+    "unmatched_candidates": []
+  },
+  "C": {
+    "reference_in_overlap": 5,
+    "candidate_in_overlap": 8,
+    "exact_matches": 5,
+    "unmatched_candidates": [
+      "1982-10-18",
+      "2009-09-15",
+      "2011-11-03"
+    ]
+  },
+  "B": {
+    "source_dates_including_new": 11,
+    "exact_matches_including_new": 11,
+    "date_lists_equal": true
+  },
+  "published_displayed_row_means": {
+    "A_twelve_month_pct": 23.431578947368422,
+    "C_six_month_pct": 14.162500000000001,
+    "C_twelve_month_pct": 22.225
+  },
+  "source_conflicts": [
+    "A table final date 2025-04-25 whereas table source cutoff is 2025-04-24; preserve as printed",
+    "B graph inset gives 21.6% and 10 observations whereas larger table average gives 20.7%; no silent overwrite",
+    "C table has eight mature cases plus a new 2025-04-23 case; denominator and suppression convention not stated"
+  ],
+  "status": "UNVERIFIED_PARTIAL_DATE_RECONCILIATION",
+  "SAFE_TO_ACT": false
+}

@@ -1,0 +1,41 @@
+name: MBSS daily research
+on:
+  push:
+    branches: [main]
+    paths: [pyproject.toml]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 23 * * 1-5'
+permissions:
+  contents: read
+concurrency:
+  group: mbss-daily
+  cancel-in-progress: false
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -e .
+      - run: python -m unittest discover -s tests -v
+      - name: Attempt public-source downloads
+        id: collect
+        continue-on-error: true
+        run: mbss collect --input data/normalized --start 1999-01-01 --timeout 10
+      - name: Generate same-run report, including DATA_HOLD
+        run: mbss run --input data/normalized --output runs/daily
+      - name: Report data status
+        run: python -c "import json; q=json.load(open('runs/daily/data_quality.json')); print('Data status:',q['status'])"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mbss-research-${{ github.run_id }}
+          path: |
+            runs/daily/
+            data/normalized/collection_attempts.json
+          retention-days: 14
