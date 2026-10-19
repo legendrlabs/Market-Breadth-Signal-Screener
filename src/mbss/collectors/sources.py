@@ -36,6 +36,37 @@ def parse_cboe(body):
     return frame.set_index('date')[['close']].sort_index()
 
 
+def parse_mcclellan_rows(rows,datemode=0):
+    import xlrd
+    headers=[i for i,row in enumerate(rows[:-1]) if len(row)>=3 and
+             [str(x).strip().upper() for x in row[:3]]==['DATE','NYSE','NYSE'] and
+             [str(x).strip().upper() for x in rows[i+1][1:3]]==['ADV.','DEC.']]
+    if len(headers)!=1:raise ValueError('NYSE DATE/ADV./DEC. XLS header not identified uniquely')
+    observations=[];note_rows=0
+    def numeric(value):
+        try:float(value);return True
+        except (ValueError,TypeError):return False
+    for row in rows[headers[0]+2:]:
+        if len(row)<3:continue
+        date,a,d=row[:3]
+        if not numeric(a) and not numeric(d):
+            if str(a or '').strip() or str(d or '').strip():note_rows+=1
+            continue
+        if not isinstance(date,(int,float)):raise ValueError('breadth observation has invalid Excel date')
+        stamp=pd.Timestamp(xlrd.xldate_as_datetime(date,datemode)).normalize()
+        observations.append((stamp,a,d))
+    if not observations:raise ValueError('no actual breadth observations')
+    frame=pd.DataFrame(observations,columns=['date','advances','declines']).set_index('date')
+    frame.attrs['non_observation_note_rows']=note_rows
+    return frame
+
+
+def parse_mcclellan(body):
+    import xlrd
+    book=xlrd.open_workbook(file_contents=body);sheet=book.sheet_by_name('A')
+    return parse_mcclellan_rows([sheet.row_values(i) for i in range(sheet.nrows)],book.datemode)
+
+
 def collect(destination,start='2000-01-01',timeout=8):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=True)
     raw=destination.parent/'raw'/datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ');raw.mkdir(parents=True)
@@ -47,6 +78,7 @@ def collect(destination,start='2000-01-01',timeout=8):
         url=f'https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol,safe="")}?period1={period}&period2={end}&interval=1d&events=div%2Csplits'
         sources.append((name,url,parse_yahoo))
     sources.append(('vix','https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv',parse_cboe))
+    sources.append(('breadth','https://www.mcoscillator.com/data/osc_data/OSC-DATA.xls',parse_mcclellan))
     meta_path=destination/'metadata.json'
     metadata=json.loads(meta_path.read_text()) if meta_path.exists() else {}
 
@@ -54,12 +86,13 @@ def collect(destination,start='2000-01-01',timeout=8):
         name,url,parser=job;begin=time.monotonic();stamp=utc_now()
         attempt={'dataset':name,'source':url,'retrieval_timestamp':stamp}
         try:
-            request=Request(url,headers={'User-Agent':'MBSS/0.1.1 (independent public-data research)'})
+            request=Request(url,headers={'User-Agent':'MBSS/0.1.2 (independent public-data research)'})
             with urlopen(request,timeout=timeout) as response:body=response.read(30_000_000)
-            raw_path=raw/(name+('.json' if name!='vix' else '.csv'));raw_path.write_bytes(body)
+            raw_path=raw/(name+('.xls' if name=='breadth' else '.csv' if name=='vix' else '.json'));raw_path.write_bytes(body)
             frame=parser(body)
             if frame.empty:raise ValueError('empty dataset')
             attempt.update(status='DOWNLOADED_NOT_YET_VALIDATED',rows=len(frame),raw_sha256=sha256(body).hexdigest(),raw_file=str(raw_path))
+            if frame.attrs:attempt['parser_notes']=dict(frame.attrs)
             return name,frame,attempt
         except Exception as exc:
             attempt.update(status='FAILED',error=type(exc).__name__+': '+str(exc))
@@ -71,15 +104,29 @@ def collect(destination,start='2000-01-01',timeout=8):
         for name,frame,attempt in pool.map(download,sources):
             attempts.append(attempt)
             if frame is None:continue
-            frame.to_csv(destination/(name+'.csv'),index_label='date')
-            metadata[name]={'source':attempt['source'],'retrieval_timestamp':attempt['retrieval_timestamp'],
+            new_meta={'source':attempt['source'],'retrieval_timestamp':attempt['retrieval_timestamp'],
                             'definition':'S&P 500 index price OHLC' if name=='spx' else 'Cboe VIX daily close' if name=='vix' else name.upper()+' split-adjusted OHLC, dividend-adjusted close and cash distributions',
                             'adjustment_method':'Index price only; no dividend total-return series' if name=='spx' else 'Cboe published close' if name=='vix' else 'Yahoo adj_close/close factor; adjusted OHLC total-return proxy',
                             'review_status':'documented','raw_sha256':attempt['raw_sha256'],
                             'raw_file':attempt['raw_file'],'redistribution':'Provider terms apply; raw data not shipped in source release',
                             'adjustment_reference':'https://in.help.yahoo.com/kb/adjusted-close-sln28256.html' if name!='vix' else 'https://www.cboe.com/tradable-products/vix/vix-historical-data'}
-    attempts.append({'dataset':'breadth','status':'DATA_HOLD','source':None,
-                     'error':'Comparable free NYSE historical advances/declines source not secured; CSV with reviewed universe required'})
+            if name=='breadth':
+                new_meta.update(definition='McClellan published NYSE composite advancing/declining issue counts; recent window only',
+                    adjustment_method='Published final WSJ/Barrons-based counts; no price reconstruction or gap filling',
+                    adjustment_reference='https://www.mcoscillator.com/market_breadth_data/',
+                    universe={'exchange':'NYSE','etf_included':None,'preferred_included':None,'closed_end_fund_included':None,'point_in_time_membership':None},
+                    universe_evidence='https://www.mcoscillator.com/learning_center/kb/market_data/a-d_data_composite_or_operating_companies_only/',
+                    reference_comparability={'status':'unverified','evidence':None},
+                    limitations=['Recent rolling window, not continuous 2000-present history','Exact historical universe and NDR comparability unverified'],collector_managed=True)
+                existing=metadata.get('breadth',{})
+                if (destination/'breadth.csv').exists() and not (existing.get('collector_managed') is True and
+                        existing.get('source')==attempt['source'] and existing.get('review_status')!='reviewed'):
+                    frame.to_csv(destination/'breadth_candidate.csv',index_label='date')
+                    (destination/'breadth_candidate_metadata.json').write_text(json.dumps(new_meta,indent=2))
+                    attempt['application_status']='CANDIDATE_ONLY_EXISTING_INPUT_PRESERVED'
+                    continue
+            frame.to_csv(destination/(name+'.csv'),index_label='date')
+            metadata[name]=new_meta
     meta_path.write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
     (destination/'collection_attempts.json').write_text(json.dumps(attempts,ensure_ascii=False,indent=2))
     return attempts
