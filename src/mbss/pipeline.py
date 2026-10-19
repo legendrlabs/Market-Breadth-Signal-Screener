@@ -14,7 +14,8 @@ import pandas as pd
 from mbss import __version__
 from mbss.collectors.calendar import market_sessions,as_utc
 from mbss.collectors.sources import load_inputs,utc_now
-from mbss.collectors.quality import validate_dataset
+from mbss.collectors.quality import validate_dataset,reason_codes,breadth_diagnostics
+from mbss.collectors.context import external_context
 from mbss.indicators.core import breadth_ratio,ema
 from mbss.signals.core import zbt_events,rally_events,expansion_events,election_events,all_combinations
 from mbss.backtest.events import event_study
@@ -115,6 +116,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
             if name in load_errors or 'metadata' in load_errors:
                 q['history_valid']=False;q['validation_status']='DATA_HOLD';q['flags'].append('PARSE_ERROR')
             q['future_or_unclosed_rows_excluded']=excluded.get(name,0)
+            q['reason_codes']=reason_codes(q['flags'],q['fresh'],q['rows'])
             quality[name]=q
         usable={n:f.reindex(sessions) for n,f in frames.items() if quality[n]['history_valid']}
         events=[];sensitivities=[]
@@ -180,7 +182,9 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         assessment=daily_assessment(events,usable,quality,sessions,calendar['valid'],cfg.get('risk'))
         claims=claim_audit(results,synthetic);cases=regime_cases(results)
         data_quality={'status':assessment['DATA_QUALITY'],'calendar':calendar,'datasets':quality,
-                      'load_errors':load_errors,'synthetic':synthetic,'raw_observations_used_for_trading':False}
+                      'load_errors':load_errors,'synthetic':synthetic,'raw_observations_used_for_trading':False,
+                      'breadth_diagnostics':breadth_diagnostics(frames['breadth'],sessions,expected_last)}
+        context=external_context(input_dir,as_of)
         versions={}
         for package in ('pandas','numpy','matplotlib','exchange-calendars'):
             try:versions[package]=version(package)
@@ -206,6 +210,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         pd.DataFrame([e.record() for e in events],columns=['signal','signal_date','components','definition']).to_csv(stage/'signals.csv',index=False)
         results.to_csv(stage/'backtest_results.csv',index=False)
         dump(stage/'signal_events.json',{'assessment':assessment,'events':[e.record() for e in events],'synthetic':synthetic})
+        dump(stage/'external_context.json',context)
         dump(stage/'data_quality.json',data_quality);dump(stage/'summary.json',summary);dump(stage/'claim_audit.json',claims)
         dump(stage/'random_baselines.json',baselines);dump(stage/'strategy_summary.json',strategy_summary)
         dump(stage/'strategy_trades.json',trades)
@@ -214,7 +219,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         observations(frames,metadata,quality).to_csv(stage/'observations.csv',index=False)
         if curves:pd.concat({k:v.equity for k,v in curves.items()},axis=1).to_csv(stage/'strategy_equity.csv',index_label='date')
         images=plots(usable,events,results,curves,cases,synthetic,display_start=start)
-        render(stage,assessment,data_quality,summary,claims,images,manifest,strategy_summary,synthetic)
+        render(stage,assessment,data_quality,summary,claims,images,manifest,strategy_summary,synthetic,external_context=context)
         manifest['output_sha256']={f.name:digest(f) for f in sorted(stage.glob('*')) if f.is_file()}
         dump(stage/'run_manifest.json',manifest)
         os.replace(stage,output)

@@ -1,10 +1,10 @@
-# Market Breadth Signal Screener (MBSS) v0.1.1
+# Market Breadth Signal Screener (MBSS) v0.1.2
 
 미국 상승 참여도 신호를 **독립 검증**하는 Python 연구 도구입니다. 과거 100% 승률을 전제로 삼지 않습니다. 기존 Mechanical Top15, K-Mechanical, SSM 코드나 규칙을 가져오거나 변경하지 않습니다. 자동매매 기능은 없습니다.
 
 **연구 상태: 소스 구현·로컬 실자료 실행 완료. B/D 집계 수치와 A/C 일부 사건 날짜 대조. A/C 전체·복합 신호 실자료 검증 미완료. SAFE_TO_ACT=False.**
 
-개발·배포 저장소는 [legendrlabs/Market-Breadth-Signal-Screener](https://github.com/legendrlabs/Market-Breadth-Signal-Screener)입니다. v0.1.1은 검증 진행 중인 연구 프리릴리스입니다. 실제 게시 여부는 [Releases](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/releases), 실행·보고서는 [Actions](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/actions)에서 확인합니다.
+개발·배포 저장소는 [legendrlabs/Market-Breadth-Signal-Screener](https://github.com/legendrlabs/Market-Breadth-Signal-Screener)입니다. v0.1.2은 검증 진행 중인 연구 프리릴리스입니다. 실제 게시 여부는 [Releases](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/releases), 실행·보고서는 [Actions](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/actions)에서 확인합니다.
 
 ## 빠른 실행
 
@@ -21,7 +21,7 @@ mbss run --input data/normalized --start 2000-01-01
 
 Windows PowerShell 활성화는 `.venv\Scripts\Activate.ps1`입니다. 설치하지 않고 실행할 때는 `PYTHONPATH=src python -m mbss.cli ...`를 사용합니다.
 
-수집 명령이 실패하면 종료코드 2를 반환합니다. 이후 `run`을 실행하면 확보된 입력만 검증하여 보고서를 만들며, 부족한 항목은 DATA_HOLD로 남깁니다. NYSE 장기 Breadth 후보는 부분 확보했지만 집계 범위와 연속성 검증을 통과하지 못했으므로, 가격 수집 성공만으로 A/C 신호가 활성화되지 않습니다. 거래일 라이브러리가 없으면 평일로 대체하지 않습니다.
+수집 명령이 실패하면 종료코드 2를 반환합니다. 이후 `run`을 실행하면 확보된 입력만 검증하여 보고서를 만들며, 부족한 항목은 DATA_HOLD로 남깁니다. McClellan 무료 최근 NYSE A/D XLS를 일일 수집하지만 장기 공백·집계 범위·NDR 비교 검증을 통과하지 못했으므로, 가격 수집 성공만으로 A/C 신호가 활성화되지 않습니다. 거래일 라이브러리가 없으면 평일로 대체하지 않습니다.
 
 ```bash
 mbss run --as-of 2026-10-19T08:57:00Z --output runs/research-20261019
@@ -62,13 +62,23 @@ mbss run --start 1974-01-01 --cost-bps 5 --output runs/long-history-costs
 
 합성자료는 테스트에만 사용하며 보고서에 SYNTHETIC TEST ONLY를 표시합니다. 입력이 없을 때의 정상 보고, 잘못된 메타데이터, 누락·중복·무한값, 인과적 신호, 경계, 겹치는 보유기간, 비용과 배당 조정, 비교기간 정렬 등을 테스트합니다. 거래일 의존성을 설치하지 못한 환경에서는 조기 폐장 검증을 SKIP하고 그 사실을 보고합니다.
 
-최초 엔진 검수는 Python 47개 통과이며 등록 단계의 배포 검사를 포함한 최종 로컬 검수는 Python 57개와 Node 6개 전체 통과입니다. 의존성 설치 후에는 휴장일·조기 폐장 검사도 생략하지 않았습니다. 같은 실행 환경을 복원하려면 `requirements.lock.txt`를 사용합니다. 잠금 파일은 이 실행의 Python 3.12 환경 스냅샷입니다.
+최초 엔진 검수는 Python 47개 통과이며 등록 단계의 배포 검사를 포함한 최종 로컬 검수는 Python 68개와 Node 6개 전체 통과입니다. 의존성 설치 후에는 휴장일·조기 폐장 검사도 생략하지 않았습니다. 같은 실행 환경을 복원하려면 `requirements.lock.txt`를 사용합니다. 잠금 파일은 이 실행의 Python 3.12 환경 스냅샷입니다.
 
 GitHub 워크플로는 `.github/workflows/ci.yml`, `daily.yml`에 있습니다. 일일 작업은 미국 거래일 저녁 이후 UTC 23:17 / 다음 날 KST 08:17에 시도하며 휴장일에는 직전 완료 거래일을 사용합니다. 개인/조직의 Actions 무료 사용량 한도는 별도이며 무제한 무료 실행을 보장하지 않습니다. 공급원 자료와 보고서를 코드 릴리스에 자동 커밋하지 않습니다.
 
 main의 버전 변경은 테스트 후 연구 프리릴리스를 준비하고 첫 일일 보고서를 생성합니다. 기존 태그·공개 파일을 덮어쓰지 않습니다. 실제 배포 근거와 상태는 [docs/deployment.md](docs/deployment.md), 운용은 [docs/운용매뉴얼.md](docs/운용매뉴얼.md)를 참조합니다.
 
 
-## v0.1.1 실행 출처 수정
+## v0.1.2 실행 출처 수정
 
 v0.1.0의 첫 GitHub 보고서에서 publication 필드가 로컬 개발 당시의 NOT_PUBLISHED 상수로 남아 있던 오류를 수정했습니다. GitHub Actions 환경의 repository/run/SHA와 실제 checkout commit이 일치할 때 실행 URL을 기록합니다. 로컬 실행이나 일치하지 않는 환경은 UNKNOWN_NOT_CHECKED이며 원격 release의 존재는 조회 없이 단정하지 않습니다. 신호 수식·수익률·DATA_HOLD 판정은 변경하지 않았습니다.
+
+
+## v0.1.2 현재 상태·품질 원인·관측 자료
+
+- 현재 신호가 없으면 `SIGNAL_STATUS=NO_SIGNAL`, `SIGNAL_DATE=null`입니다. 과거 사건은 `LAST_SIGNAL_DATE`와 `LAST_SIGNAL_STATUS=EXPIRED`로 추적합니다. D에는 `SEASONALITY_STATUS=ACTIVE/INACTIVE`를 별도로 표시합니다.
+- 보류 원인은 `DATA_HOLD_REASONS`와 데이터별 `reason_codes`로 구분합니다: SOURCE_UNAVAILABLE, INSUFFICIENT_HISTORY, VALIDATION_FAILED, STALE_DATA. 상세 기존 flags도 보존합니다.
+- McClellan 최근 XLS에서 실제 상승·하락 수를 읽습니다. 10거래일 연속성·100관측 EMA 워밍업을 검사한 참고 지표는 `data_quality.json.breadth_diagnostics`와 별도 보고서 표에만 표시합니다. 미검증 범위를 신호·백테스트에 투입하지 않습니다.
+- 장중 보도·S&P500 보조 참고값은 입력 폴더의 선택적 `external_context.json`에 보관하고 같은 이름의 출력으로 분리합니다. 출처·모집단·관측/수집시각·장중 여부를 표시하며 A/C 입력으로 사용하지 않습니다. S&P500 일별 자동 Breadth 시계열 수집은 아직 구현하지 않았습니다.
+
+추가 자료와 한계는 [v0.1.2 연구](docs/breadth-live-research-2026-10-19.md)를 참조합니다.

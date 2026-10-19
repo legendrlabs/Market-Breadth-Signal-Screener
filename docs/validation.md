@@ -51,3 +51,19 @@ Ruling: publish only a research prerelease, keeping provider data and reports ou
 Final publication review: no Critical/Important findings; reviewer independently ran Python 53/53 and Node 6/6, zero skips. Final: minor (deferred): reject a previously published release externally converted from prerelease to stable. The first-publication path always sets prerelease=true; this affects external mutation/retry hardening only.
 
 Actual main execution 39268895856 and v0.1.0 prerelease succeeded. Artifact inspection found the run manifest still used a development-era NOT_PUBLISHED constant despite executing on GitHub. Root cause: publication metadata never consumed the already recorded checkout commit or GitHub run context. Four provenance regressions failed before implementing matching-checkout context; the existing empty-run test also rejects the stale constant. v0.1.1 records only verified matching execution context and uses NOT_CHECKED for unqueried release existence. This does not change signal detection, statistics or trade permission.
+
+
+## v0.1.2 feedback and data continuation
+
+Ruling: distinguish the absence of a current active signal from the lifecycle of an actual past signal. EXPIRED was valid for B's 2025 and D's 2022 event; current fields now use NO_SIGNAL and separate LAST_SIGNAL_STATUS. Cost if wrong: consumers may misread an inactive history as a fresh signal. D has separate seasonality context. No detection threshold or outcome formula changed.
+
+Ruling: connect the publicly available recent McClellan XLS while preserving universe/NDR DATA_HOLD. Add only explicitly unverified recent-window diagnostics; do not splice incompatible historical archives. Cost if wrong: a recent numeric ratio could be mistaken for a validated ZBT, so it is excluded from all signal/backtest inputs and labeled REFERENCE_ONLY.
+
+Tests first: seven live-diagnostic regressions failed (four failures, three errors) before implementation. Current/expired state, no-prior-event, six-month seasonality, hold causes, gap resets, XLS header/blank future rows and isolated external context now pass. Two extra boundary/future-reference cases cover twenty-session expiry and future external input. Full Python 66/66 and Node 6/6 pass locally.
+
+Live acquisition obtained NYSE actual issue counts; the first attempt also exposed a genuine SPX source failure and correctly kept affected signals on SOURCE_UNAVAILABLE rather than implying NO_SIGNAL. Recent NYSE diagnostics through 2026-10-16: 139 consecutive observations, ratio 0.4233737596, EMA10 0.4927491823, one >70% day in the last ten. These are not approved signal inputs.
+
+
+Final v0.1.2 review: no Critical findings, two Important findings reproduced. Final: fixed existing imported/reviewed breadth overwrite — test_collection_preserves_imported_breadth_and_stages_candidate RED→GREEN. Final: fixed XLS footer note counted as an observation — test_xls_note_row_is_not_an_observation_but_partial_numeric_row_is RED→GREEN. Full suite 68/68 Python and 6/6 Node green. Only collector-managed unreviewed files at the same source can be refreshed in place; other existing inputs are preserved and new data staged separately. No incompatible historical splicing.
+
+Final: minor (deferred): malformed external-context JSON is diagnosed in JSON but the rendered empty-reference wording omits that parsing error. Final: minor (deferred): an external record missing value does not receive an explicit missing-value flag. Both remain permanently excluded from all signal calculations; improve these auxiliary input messages later. No second review requested after the single regression fix pass.

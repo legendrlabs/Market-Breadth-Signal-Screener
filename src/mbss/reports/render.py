@@ -75,16 +75,16 @@ def md_table(headers,rows):
     return '\n'.join(['| '+' | '.join(headers)+' |','|'+'|'.join(['---']*len(headers))+'|']+['| '+' | '.join(cell(x) for x in row)+' |' for row in rows])
 
 
-def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False):
+def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False,external_context=None):
     def pct(v):return f'{v*100:+.2f}%' if v is not None and np.isfinite(v) else '—'
-    title='MBSS v0.1.1 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
+    title='MBSS v0.1.2 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
     status=assessment['SIGNAL_STATUS'];last=assessment['as_of_session'] or 'unknown'
     lines=[f'# {title}',f"As of UTC: {manifest['as_of_utc']} / completed NYSE session: {last}",
            f"**{status} · SAFE_TO_ACT=False · OBSERVE_ONLY**",'',
            '기존 장기 주식모으기·인컴 분배금 TQQQ 재투자·Mechanical Top15·K-Mechanical·SSM 규칙은 변경하지 않습니다. 전술 유동성 판단 보조용 연구 결과이며 자금 투입 비중은 아직 승인되지 않았습니다.',
-           '', '## Daily signal states','',md_table(['Signal','State','Latest signal','Data quality'],[[s,r['SIGNAL_STATUS'],r['SIGNAL_DATE'],r['DATA_QUALITY']] for s,r in assessment['signals'].items()]),
+           '', '## Daily signal states','',md_table(['Signal','Current state','Current signal date','Last signal','Last lifecycle','Seasonality','Data quality','Hold reasons'],[[s,r['SIGNAL_STATUS'],r['SIGNAL_DATE'],r.get('LAST_SIGNAL_DATE'),r.get('LAST_SIGNAL_STATUS'),r.get('SEASONALITY_STATUS'),r['DATA_QUALITY'],', '.join(r.get('DATA_HOLD_REASONS',[]))] for s,r in assessment['signals'].items()]),
            '', '## Observed market data and indicators','',md_table(['Metric','Value'],list(assessment['metrics'].items())),
-           '', '## Data quality','',md_table(['Dataset','Rows','From','Through','History valid','Freshness','Missing sessions','Flags'],[[n,q.get('rows'),q.get('start'),q.get('end'),q.get('history_valid'),q.get('freshness'),q.get('missing_count'),', '.join(q.get('flags',[]))] for n,q in quality['datasets'].items()]),
+           '', '## Data quality','',md_table(['Dataset','Rows','From','Through','History valid','Freshness','Missing sessions','Reason codes','Flags'],[[n,q.get('rows'),q.get('start'),q.get('end'),q.get('history_valid'),q.get('freshness'),q.get('missing_count'),', '.join(q.get('reason_codes',[])),', '.join(q.get('flags',[]))] for n,q in quality['datasets'].items()]),
            '',f"Calendar valid: {quality['calendar'].get('valid')}. {quality['calendar'].get('error','')}",
            '', '## Independent claim audit','',md_table(['Signal','Published n','Horizon','Status','Complete n','Published mean','Next-open mean'],[[c['signal'],c['published_n'],str(c['published_months'])+'m',c['status'],c['reproduced_complete_n_in_claim_scope'],pct(c['published_mean']),pct(c['observed_mean_next_open'])] for c in claims]),
            '', 'Reference-only comparison (same-day close is not an executable after-close entry):','',
@@ -94,6 +94,13 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     if summary:
         lines.append(md_table(['Signal','Months','Complete n','Immature','Mean','Median','Win rate','Overlap clusters','Cluster-bootstrap 95%'],[[s['signal'],s['months'],s['n'],s['immature'],pct(s.get('mean')),pct(s.get('median')),pct(s.get('win_rate')),s.get('overlap_clusters'),' / '.join(pct(v) for v in s['mean_cluster_bootstrap_95']) if s.get('mean_cluster_bootstrap_95') else '—'] for s in summary]))
     else:lines.append('DATA_HOLD: no validated historical outcome sample. Performance and win rates are unavailable; no zero return is imputed.')
+    diagnostics=quality.get('breadth_diagnostics',{})
+    lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
+            'These raw-source diagnostics are excluded from signal detection and backtest samples; source universe/NDR comparison remains unverified. Missing sessions reset the EMA and ten-session window.',
+            '',md_table(['Metric','Value'],list(diagnostics.items()))]
+    context=external_context or {'observations':[]}
+    lines+=['','## External intraday references — excluded from MBSS signals','',
+            md_table(['Metric','Value','Universe','Session','Observed at','Retrieved at','Source','Status','Flags'],[[r.get('metric'),r.get('value'),r.get('universe'),r.get('session_type'),r.get('observed_at'),r.get('retrieval_timestamp'),r.get('source'),r.get('status'),', '.join(r.get('flags',[]))] for r in context['observations']]) if context['observations'] else 'No external reference supplied.']
     lines += ['', '## SPY buy-and-hold comparison','']
     if strategy_summary:
         lines.append(md_table(['Strategy','Cumulative return','CAGR','Volatility','Sharpe rf=0','Max drawdown','Exposure','Opportunity cost vs B&H'],[[s['strategy'],pct(s.get('cumulative_return')),pct(s.get('cagr')),pct(s.get('annualized_volatility')),f"{s['sharpe_rf_zero']:.3f}" if s.get('sharpe_rf_zero') is not None else '—',pct(s.get('max_drawdown')),pct(s.get('exposure')),pct(s.get('opportunity_cost_vs_buy_hold'))] for s in strategy_summary]))

@@ -37,3 +37,12 @@ Yahoo supplies split-adjusted OHLC and a splits/dividends-adjusted close. MBSS's
 Validation includes internal missing sessions, duplicated dates, non-session dates, source metadata and numeric shape. The historical gate is separate from freshness at the latest completed session. A stale dataset may support retrospective research but never a current confirmation. Leading unavailable years are reported through coverage dates, and strategy comparisons use the common observed window. Final ongoing trading-session rows are removed before calculation and counted in `future_or_unclosed_rows_excluded`.
 
 `observations.csv` records source, observation_date, retrieval_timestamp, original_value, adjusted_value, missing_count, freshness and validation_status per input field. `data_quality.json` records flags, rows and start/end. The manifest hashes inputs/outputs and records the source retrieval attempts. Provider raw data are retained locally on download; they are excluded from the source release. No redistributable dataset license is inferred from public accessibility.
+
+
+## v0.1.2 quality and context outputs
+
+Dataset `reason_codes` and signal `DATA_HOLD_REASONS` separate SOURCE_UNAVAILABLE, INSUFFICIENT_HISTORY, VALIDATION_FAILED and STALE_DATA; detailed flags remain. Current SIGNAL_DATE is null when no active event exists; LAST_SIGNAL_DATE/LAST_SIGNAL_STATUS preserve expired history. D additionally exposes SEASONALITY_STATUS.
+
+`data_quality.json.breadth_diagnostics` is unverified, source-only recent NYSE observation arithmetic. It is excluded from signals and event/portfolio results. Gaps reset EMA warmup and the ten-session count. The McClellan adapter requires DATE/NYSE/NYSE followed by ADV./DEC. and excludes blank rows and audited note rows with no numeric issue counts; partial numeric observations remain for validation. It never reads calculated oscillator/volume columns as counts. Existing user-imported breadth and metadata are preserved; incompatible new downloads go to breadth_candidate.csv/breadth_candidate_metadata.json.
+
+Optional input `external_context.json` is a list of records with metric/value/universe/session_type/observed_at/retrieval_timestamp/source. It is copied into a separate output with eligibility always False. Missing exact observation time is OBSERVATION_TIME_UNKNOWN; future timestamps are flagged. No external value is merged into observed official metrics or the NYSE signal series. See breadth-live-research-2026-10-19.md for a schema example.
