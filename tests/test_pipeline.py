@@ -20,6 +20,7 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(result['assessment']['SIGNAL_STATUS'],'DATA_HOLD')
             self.assertIn('UNVERIFIED',(out/'latest.md').read_text())
             self.assertTrue(pd.read_csv(out/'backtest_results.csv').empty)
+            self.assertNotEqual(result['manifest']['publication']['github_repository'],'NOT_PUBLISHED')
 
     def test_synthetic_fixture_is_labeled_and_not_claim_validation(self):
         with tempfile.TemporaryDirectory() as d:

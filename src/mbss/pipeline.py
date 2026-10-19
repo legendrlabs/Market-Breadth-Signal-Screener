@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import uuid
@@ -25,6 +26,23 @@ from mbss.reports.render import plots,render
 
 
 def digest(file):return sha256(Path(file).read_bytes()).hexdigest()
+
+
+def publication_context(commit,environ=None):
+    """Record a matching GitHub run; never guess remote release existence."""
+    env=os.environ if environ is None else environ
+    result={'github_repository':'UNKNOWN_NOT_CHECKED','release':'NOT_CHECKED',
+            'workflow_run_url':None,'execution_context':'LOCAL_OR_UNVERIFIED'}
+    repository=env.get('GITHUB_REPOSITORY','');run_id=env.get('GITHUB_RUN_ID','')
+    if (env.get('GITHUB_ACTIONS')=='true'
+        and isinstance(commit,str) and re.fullmatch(r'[0-9a-f]{40}',commit)
+        and env.get('GITHUB_SHA')==commit
+        and re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repository)
+        and re.fullmatch(r'\d+',run_id)):
+        url='https://github.com/'+repository
+        result.update(github_repository=url,workflow_run_url=url+'/actions/runs/'+run_id,
+                      execution_context='GITHUB_ACTIONS_MATCHING_CHECKOUT')
+    return result
 
 
 def json_safe(value):
@@ -178,7 +196,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
                   'return_convention':'next-open entry; calendar-month target rolled forward; close exit; no shortened immature horizons',
                   'assumptions':{'cash_return':0,'rf_for_sharpe':0,'leverage':1,'position_limit':1,'dividend_proxy':'Yahoo adjusted OHLC','allocation_enabled':False},
                   'limitations':['Original book/NDR archive unverified','Full published event-date lists unreconciled','Single-source price revisions possible','Multiple comparisons; no optimized thresholds','Calendar library is a third-party schedule, not an official exchange feed'],
-                  'publication':{'github_repository':'NOT_PUBLISHED','release':'NOT_PUBLISHED'}}
+                  'publication':publication_context(commit)}
         project_root=Path(__file__).resolve().parents[2]
         manifest['source_sha256']={str(f.relative_to(project_root)):digest(f) for f in sorted((project_root/'src').rglob('*.py'))}
         try:manifest['git_dirty']=bool(subprocess.check_output(['git','status','--porcelain'],cwd=project_root,text=True).strip())

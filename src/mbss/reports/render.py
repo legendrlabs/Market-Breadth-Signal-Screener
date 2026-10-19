@@ -77,7 +77,7 @@ def md_table(headers,rows):
 
 def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False):
     def pct(v):return f'{v*100:+.2f}%' if v is not None and np.isfinite(v) else '—'
-    title='MBSS v0.1.0 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
+    title='MBSS v0.1.1 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
     status=assessment['SIGNAL_STATUS'];last=assessment['as_of_session'] or 'unknown'
     lines=[f'# {title}',f"As of UTC: {manifest['as_of_utc']} / completed NYSE session: {last}",
            f"**{status} · SAFE_TO_ACT=False · OBSERVE_ONLY**",'',
