@@ -49,6 +49,10 @@
 ### 무료 장기 NYSE 연속 시계열
 [Unicorn](https://unicorn.us.com/advdec/)의 갱신 중단과 [기존 43개 McClellan 보관본의 불연속](reference/mcclellan-archive-audit-2026-10-20.json)은 해결되지 않았다. 거래소 [NYSE Historical](https://www.nyse.com/market-data/historical)는 일반적으로 체결·호가 데이터 상품을 안내하며, 원문과 정의가 같은 무료/무키 2000~2026 A/D 연속 파일을 이번 조사에서 확보하지 못했다. **공개 웹 전체에 존재하지 않는다고 단정하지 않는다.**
 
+### 추가 무료 후보 — QuantShare 다운로드 스크립트 (미검증)
+
+[QuantShare NYSE Advances and Declines](https://www.quantshare.com/item-453-nyse-advances-and-declines)는 무료 QuantShare 소프트웨어 안에서 `$ADV`/`$DECL`/`$UCHG` 일별 과거 데이터를 내려받는 스크립트라고 설명한다. **실제 스크립트 코드·다운로드 엔드포인트·2020년 이후 연속성·최종 자료 공급원·NYSE Composite 정의·라이선스는 열람/재현하지 못했다.** 기존 Unicorn과 같은 중단된 원천을 다시 포장한 것인지도 모른다. 따라서 `CANDIDATE_NOT_ACQUIRED`이며 수치 0건, 검증 완료나 무인증 자동화를 주장하지 않는다.
+
 ## 남은 P2 실측 검증 단계
 
 1. WSJ의 날짜별 NYSE 열 (Final이라고 실제 표시된 근거) 을 합법적으로 확보하고 `evidence_url`, `captured_at`을 기록.
