@@ -124,3 +124,13 @@ WSJ 일별 NYSE 상승·하락 수는 공개 HTML 열람에서 동적 로딩만 
 1999-12-31은 SEC가 확인한 **실제 NYSE 오후 1시 조기 폐장 세션**이며 FRED VIXCLS의 원 관측값은 **24.64**다. 따라서 당시 Cboe VIX_History.csv의 단일 누락일을 거래일 아님으로 삭제하지 않는다. Cboe VIX 신규 다운로드가 성공했고 XNYS 달력에서 실제 결측을 찾으면 FRED가 재배포한 Cboe 관측값이 **각 결측 날짜에 실제 존재하는 경우에만** 원자료 보존과 함께 계산용 vix.csv에 추가한다. 보간·대치·임의 상수는 사용하지 않으며 다운로드 실패나 미관측은 DATA_HOLD다.
 
 복구 날짜 및 값과 FRED 원문 해시/출처는 `vix_recovery.json` 및 보고서에, 복구된 행의 출처는 `observations.csv`에 기록한다. 이 출처는 독립된 산출기관의 인증이 아니며, NYSE A/C와 전체 `SAFE_TO_ACT=False`는 유지한다. [자료·구현·검증 근거](docs/vix-fred-observed-gap-2026-10-20.md).
+
+## 2026-10-20 NYSE Breadth 원천 모집단·Carson 신호 C 정의 감사
+
+- McClellan 발행자는 주로 NYSE `Composite A-D`를 사용한다고 직접 설명한다. `Common Only`와 구분해야 하며 **2005-02-09 집계 변경은 Common Only의 변화**로 설명되어 있다. 발행사의 범위 설명을 `provider_declared_scope`에 추가했지만, ETF/우선주/폐쇄형 펀드의 개별 PIT 포함 플래그와 Carson/NDR 동등성은 **검증되지 않아 품질 게이트를 계속 차단**한다.
+- Carson 2025-04-25 원문은 **10일 중 6일, 70% 초과**라는 범위까지만 설명한다. C 중복 제거 쿨다운이나 보합 포함 분모는 확정되지 않았다. Unicorn 기반 기존 8개 연구 후보 중 인쇄표에 없는 1982-10-18, 2009-09-15, 2011-11-03 세 날짜는 삭제하지 않는다.
+- `mbss audit-c --input-csv <source.csv> --source <url-or-name> --output <new-dir>`는 **운용 코드와 격리**된 연구용 비교기다. 11개 연속 NYSE 거래일이 확인된 사건만 비교하고 원본의 인쇄 날짜 목록·집계 범위·쿨다운·분모/경계 민감도·미확보 날짜를 별도 JSON/CSV에 기록한다. 1970년 전 사건은 달력 범위 밖이다.
+- 일일 GitHub Actions는 McClellan 최근 XLS가 실제 존재하면 `runs/c-audit/`를 추가 생성한다. 최근 140거래일만으로 과거 Carson C 인쇄 표본을 재현했다고 주장하지 않으며, 참고 자료가 없을 때는 `INSUFFICIENT_REFERENCE_COVERAGE`가 정상이다.
+- 연구용 감사 값은 기존 `mbss run`, A/C 이벤트 및 백테스트, 주문에 **절대 연결하지 않는다**. `SAFE_TO_ACT=False` 유지.
+
+[원문 근거·비교 가능성·미해결 사건 정의 정리](docs/nyse-universe-carson-c-audit-2026-10-20.md).

@@ -98,6 +98,11 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     lines+=['','## VIX observed-value recovery — Cboe-origin FRED redistribution','',
             'A missing completed XNYS session may be supplied only from an actual dated FRED VIXCLS observation; no interpolation or forward fill. Cboe raw file remains separately archived. FRED republishes Cboe observations and is not independent validation.',
             '',md_table(['Metric','Value'],list(vix_patch.items()))]
+    scope=quality.get('datasets',{}).get('breadth',{}).get('provider_declared_scope') or {}
+    lines+=['','## NYSE Breadth universe source statement — NOT NDR VERIFIED','',
+            'McClellan says it generally uses composite NYSE A-D values rather than Common Only. This is a provider statement, not a point-in-time security roster or Carson/NDR equivalence. The 2005-02-09 definition change applies to a distinct Common Only series, not a proven breakpoint in McClellan composite.',
+            '',md_table(['Provider field','Value'],list(scope.items())) if scope
+            else 'Provider-level composition statement unavailable; issue-type policy remains UNVERIFIED.']
     diagnostics=quality.get('breadth_diagnostics',{})
     lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
             'Source-only NYSE observations, not Carson/NDR-validated A/C signals. As-of versus last observed NYSE session, consecutive valid sessions, and 100-session EMA warmup are reported separately. Missing sessions reset the EMA and ten-session window. SAFE_TO_ACT remains False.',

@@ -45,6 +45,23 @@ class QualityTests(unittest.TestCase):
         m['reference_comparability']={'status':'reviewed_comparable','evidence':'https://example.org/comparison'}
         self.assertTrue(validate_dataset('breadth',b,m,self.idx,self.idx[-1])['history_valid'])
 
+    def test_provider_declared_composite_scope_never_approves_pit_or_ndr(self):
+        b=pd.DataFrame({'advances':100,'declines':200},index=self.idx)
+        meta={**self.meta,
+              'universe':{'exchange':'NYSE','etf_included':None,'preferred_included':None,
+                          'closed_end_fund_included':None,'point_in_time_membership':None},
+              'provider_declared_scope':{
+                  'dataset':'McClellan NYSE composite A-D issue counts',
+                  'status':'PUBLISHER_STATEMENT_ONLY_NOT_PIT_CONSTITUENT_AUDIT',
+                  'common_only_historical_break':'2005-02-09 only for Common Only'}}
+        q=validate_dataset('breadth',b,meta,self.idx,self.idx[-1])
+        self.assertFalse(q['history_valid'])
+        self.assertEqual(q['validation_status'],'DATA_HOLD')
+        self.assertIn('UNIVERSE_UNVERIFIED',q['flags'])
+        self.assertIn('REFERENCE_COMPARABILITY_UNVERIFIED',q['flags'])
+        self.assertEqual(q['provider_declared_scope']['dataset'],
+                         'McClellan NYSE composite A-D issue counts')
+
     def test_ohlc_inconsistent_invalid(self):
         self.p.iloc[0,self.p.columns.get_loc('high')]=90
         self.assertFalse(validate_dataset('spx',self.p,self.meta,self.idx,self.idx[-1])['history_valid'])

@@ -54,6 +54,7 @@ def validate_dataset(name,frame,meta,sessions,expected_last):
     result={'source':meta.get('source'), 'retrieval_timestamp':meta.get('retrieval_timestamp'),
             'definition':meta.get('definition'), 'adjustment_method':meta.get('adjustment_method'),
             'universe':meta.get('universe'), 'universe_evidence':meta.get('universe_evidence'),
+            'provider_declared_scope':meta.get('provider_declared_scope'),
             'review_status':meta.get('review_status'), 'flags':flags}
     if frame.empty:
         flags.append('NO_OBSERVATIONS')

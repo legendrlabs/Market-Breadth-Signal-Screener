@@ -116,6 +116,15 @@ def collect(destination,start='2000-01-01',timeout=8,aux_breadth=False):
                     adjustment_reference='https://www.mcoscillator.com/market_breadth_data/',
                     universe={'exchange':'NYSE','etf_included':None,'preferred_included':None,'closed_end_fund_included':None,'point_in_time_membership':None},
                     universe_evidence='https://www.mcoscillator.com/learning_center/kb/market_data/a-d_data_composite_or_operating_companies_only/',
+                    provider_declared_scope={
+                        'dataset':'McClellan NYSE composite A-D issue counts',
+                        'status':'PUBLISHER_STATEMENT_ONLY_NOT_PIT_CONSTITUENT_AUDIT',
+                        'source':'https://www.mcoscillator.com/learning_center/kb/market_data/a-d_data_composite_or_operating_companies_only/',
+                        'distinct_from':'NYSE Common Only / NYSE Composite Index membership / SPY holdings proxy',
+                        'reported_final_aggregate':'Barrons/WSJ as described by McClellan',
+                        'common_only_historical_break':'2005-02-09 applies to Common Only, not a proven composite discontinuity',
+                        'instrument_inclusion_flags_verified':False,
+                        'carson_ndr_universe_equivalence':False},
                     reference_comparability={'status':'unverified','evidence':None},
                     limitations=['Recent rolling window, not continuous 2000-present history','Exact historical universe and NDR comparability unverified'],collector_managed=True)
                 existing=metadata.get('breadth',{})
