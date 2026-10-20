@@ -125,12 +125,15 @@ class VixObservedRecoveryTests(unittest.TestCase):
             self.assertEqual(result['status'],'CALENDAR_UNAVAILABLE')
 
     def test_two_gaps_require_all_observations_before_repair(self):
-        sessions=pd.DatetimeIndex(['1999-12-29','1999-12-30','1999-12-31','2000-01-03'])
+        sessions=pd.DatetimeIndex(['1999-12-30','1999-12-31','2000-01-03','2000-01-04'])
         with tempfile.TemporaryDirectory() as d:
-            self.cboe.to_csv(Path(d,'vix.csv'),index_label='date')
+            # Both holes lie strictly between two original Cboe observations.
+            pd.DataFrame({'close':[24.76,25.0]},
+                         index=pd.DatetimeIndex(['1999-12-30','2000-01-04'],name='date')).to_csv(
+                             Path(d,'vix.csv'),index_label='date')
             r,m,s=self.perform(d,sessions=sessions)
             self.assertEqual(s['status'],'FRED_OBSERVATIONS_INCOMPLETE')
-            self.assertEqual(s['unresolved_xnys_dates'],['1999-12-29'])
+            self.assertEqual(s['unresolved_xnys_dates'],['2000-01-03'])
 
     def test_full_report_marks_fred_row_and_stays_no_trade(self):
         with tempfile.TemporaryDirectory() as d:
