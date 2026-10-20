@@ -2,7 +2,7 @@ name: MBSS daily research
 on:
   push:
     branches: [main]
-    paths: [pyproject.toml, 'src/mbss/collectors/mcclellan_page.py', 'src/mbss/collectors/vix_recovery.py']
+    paths: [pyproject.toml, 'src/mbss/collectors/mcclellan_page.py', 'src/mbss/collectors/vix_recovery.py', 'src/mbss/c_reference_audit.py']
   workflow_dispatch:
   schedule:
     - cron: '17 23 * * 1-5'
@@ -29,6 +29,18 @@ jobs:
         run: mbss collect --input data/normalized --start 1999-01-01 --timeout 10 --aux-breadth
       - name: Generate same-run report, including DATA_HOLD
         run: mbss run --input data/normalized --output runs/daily
+      - name: Research-only Carson C date audit (isolated from MBSS signals)
+        continue-on-error: true
+        run: |
+          if [ -s data/normalized/breadth.csv ]; then
+            SOURCE="$(python -c "import json; from pathlib import Path; p=Path('data/normalized/metadata.json'); m=json.loads(p.read_text()) if p.exists() else {}; print(m.get('breadth',{}).get('source') or 'UNSPECIFIED_UNVERIFIED_SOURCE')")"
+            mbss audit-c --input-csv data/normalized/breadth.csv \
+              --reference-csv docs/reference/carson-2025-04-25-events-as-printed.csv \
+              --source "$SOURCE" --output runs/c-audit \
+              --as-of "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          else
+            echo "C_RESEARCH_INPUT_UNAVAILABLE; A/C DATA_HOLD unchanged"
+          fi
       - name: Report data status
         run: python -c "import json; q=json.load(open('runs/daily/data_quality.json')); print('Data status:',q['status'])"
       - uses: actions/upload-artifact@v4
@@ -37,5 +49,6 @@ jobs:
           name: mbss-research-${{ github.run_id }}
           path: |
             runs/daily/
+            runs/c-audit/
             data/normalized/collection_attempts.json
           retention-days: 14
