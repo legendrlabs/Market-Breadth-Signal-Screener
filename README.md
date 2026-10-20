@@ -110,3 +110,11 @@ WSJ 일별 NYSE 상승·하락 수는 공개 HTML 열람에서 동적 로딩만 
 증거가 없으면 `NO_WSJ_REFERENCE`로 표시하고 수치를 만들지 않습니다. 일치하더라도 `COUNTS_MATCH_REFERENCE_ONLY`이며 원전/NDR 비교 인증이 아닙니다. **A/C 신호·백테스트·자금배분·SAFE_TO_ACT에 연결하지 않습니다.**
 
 자세한 스키마와 원문 근거: [WSJ/McClellan 대조 및 미완료 과제](docs/wsj-mcclellan-reconciliation-2026-10-20.md).
+
+## 2026-10-20 McClellan 공개 웹페이지 ↔ 무료 XLS 감시
+
+`mbss collect`가 동일 McClellan 발행사의 NYSE 일일 공개 표(`market_breadth_data/`)와 기존 최근 A/D 엑셀(`OSC-DATA.xls`)을 별도로 수집해 수치·날짜가 일치하는지 감시합니다. 원본 웹페이지는 실행별 raw 디렉터리에 해시와 함께 저장하고, `publisher_page_snapshot.json`과 `publisher_page_reconciliation.json` 및 Markdown/HTML에 날짜·상승·하락·차이를 제공합니다. 실패·구버전 페이지·XLS 결측은 값을 생성하거나 자동 보정하지 않습니다.
+
+2026-10-19 McClellan 공개 페이지: NYSE 상승 961/하락 1,751, 하락 우위 790개. 이는 하루 관측값이며 ZBT EMA10이 아닙니다. **발행사 자체 두 표현을 대조하는 것일 뿐, WSJ 독립 확정치/NDR/Carson 비교 완료가 아닙니다.** A/C `DATA_HOLD`, `SAFE_TO_ACT=False` 유지. 실제 수집이 시작된 실행의 품질 JSON을 확인해야 하며, 이 설명만으로 자동 수집 성공을 단정하지 않습니다.
+
+원문과 구현 경계: [McClellan 웹/XLS 비교](docs/mcclellan-publisher-audit-2026-10-20.md).
