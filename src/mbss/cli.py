@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from mbss.collectors.sources import collect,utc_now
 from mbss.pipeline import run
+from mbss.c_reference_audit import run_c_audit
 
 
 def main(argv=None):
@@ -12,12 +13,24 @@ def main(argv=None):
     c=sub.add_parser('collect',help='Attempt keyless public price/VIX downloads; never infer NYSE breadth')
     c.add_argument('--input',default='data/normalized');c.add_argument('--start',default='1999-01-01');c.add_argument('--timeout',type=float,default=8)
     c.add_argument('--aux-breadth',action='store_true',help='Collect current SPY traded-holdings breadth proxy; separate from NYSE signals')
+    a=sub.add_parser('audit-c',help='Research-only Carson C date comparison; never drives signals or orders')
+    a.add_argument('--input-csv',required=True,help='Local dated A/D observations with explicit provenance')
+    a.add_argument('--reference-csv',default='docs/reference/carson-2025-04-25-events-as-printed.csv')
+    a.add_argument('--source',required=True,help='Original research source label or URL; do not claim NDR comparability')
+    a.add_argument('--output',required=True,help='New directory for immutable research outputs')
+    a.add_argument('--as-of',default=None,help='Timezone-aware timestamp, default current UTC time')
     r=sub.add_parser('run',help='Validate local inputs and generate an immutable research report')
     r.add_argument('--input',default='data/normalized');r.add_argument('--output')
     r.add_argument('--as-of',default=None,help='UTC timestamp with timezone; default now')
     r.add_argument('--start',default=None);r.add_argument('--config',default='config/default.json')
     r.add_argument('--cost-bps',type=float,default=None);r.add_argument('--seed',type=int,default=None)
     args=parser.parse_args(argv)
+    if args.command=='audit-c':
+        audit=run_c_audit(args.input_csv,args.reference_csv,args.output,args.source,args.as_of or utc_now())
+        print(json.dumps({'output':args.output,'status':audit['status'],
+                          'reference_comparable':audit['variants'][0]['comparable_reference_dates'],
+                          'SAFE_TO_ACT':False},ensure_ascii=False,indent=2))
+        return 0
     if args.command=='collect':
         if args.timeout<=0:parser.error('--timeout must be positive')
         attempts=collect(args.input,args.start,args.timeout,aux_breadth=args.aux_breadth)
