@@ -95,3 +95,10 @@ v0.1.0의 첫 GitHub 보고서에서 publication 필드가 로컬 개발 당시�
 NYSE 장기 무료 원천·정의 비교는 아직 미완료입니다. 실제 접근 시도와 보조 지표 한계는 [2026-10-20 검증 기록](docs/breadth-remaining-work-2026-10-20.md)을 참조합니다.
 
 후속 아카이브 조사에서 McClellan 보관본 43개를 복원해 2,086거래일을 부분 확보했습니다. Unicorn과 겹치는 1,605일 중 상승·하락 수가 모두 같은 날은 455일(28.35%)로, 공급원 간 단순 접합은 승인하지 않습니다. 장기 연속 검증 완료를 뜻하지 않습니다.
+
+## 2026-10-20 NYSE 참고 관측·VIX 품질 감사 (v0.1.3 유지)
+
+- `data_quality.json.breadth_diagnostics`에 실제 최근 NYSE 관측일, 원자료 상승/하락 수, CURRENT/STALE 상태, 연속 유효 거래일 수, 10일 창·100일 EMA 충족 여부, 출처·검색시각을 노출합니다. 이는 `UNVERIFIED_REFERENCE_ONLY`이며 A/C 신호·백테스트·실전 승인 입력이 아닙니다.
+- Cboe VIX에서 NYSE 달력 외 날짜는 원자료에 보존하고 `excluded_non_xnys_dates`로 감사하지만, 정상 NYSE 거래일 누락은 `missing_xnys_dates`와 `MISSING_SESSIONS`로 계속 차단합니다. FRED 값으로 자동 대체하지 않습니다.
+- 공개 VIX CSV의 동일 OHLC 첫 506행은 1990-01-02~1991-12-31이며 1992-01-02부터 OHLC가 분리됩니다. 2004-06-11까지 506행이라는 외부 조사문 설명은 정정했습니다.
+- 원전 확인 수준, Carson/NDR C 신호 중복 미해결, WSJ 최종값 대조 미구현과 후속 과제: [2026-10-20 후속 검증](docs/verification-followup-2026-10-20.md). `SAFE_TO_ACT=False`, `OBSERVE_ONLY` 유지.

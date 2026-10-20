@@ -14,25 +14,39 @@ def reason_codes(flags,fresh=True,rows=0):
 
 
 def breadth_diagnostics(frame,sessions,expected_last):
-    """Unverified observations only: never supply this output to signal detection."""
+    """Source-only current-window evidence; never an A/C signal or NDR approval."""
     from mbss.indicators.core import breadth_ratio,ema,expansion_count
     out={'status':'UNVERIFIED_REFERENCE_ONLY','eligible_for_signal':False,
-         'as_of_session':str(pd.Timestamp(expected_last).date()),'recent_10_complete':False,
-         'consecutive_valid_sessions':0,'breadth_ratio':None,'zbt_ema10':None,'expansion_days_10':None}
-    if frame.empty or frame.index.duplicated().any() or not {'advances','declines'}.issubset(frame):return out
+         'as_of_session':str(pd.Timestamp(expected_last).date()),
+         'observed_session':None,'source_freshness':'MISSING',
+         'advances':None,'declines':None,
+         'recent_10_complete':False,'ema100_warmup_complete':False,
+         'consecutive_valid_sessions':0,
+         'breadth_ratio':None,'zbt_ema10':None,'expansion_days_10':None}
+    if frame.empty or frame.index.duplicated().any() or not {'advances','declines'}.issubset(frame):
+        return out
     p=frame.reindex(sessions)[['advances','declines']].apply(pd.to_numeric,errors='coerce')
     p=p.where((p>=0)&(p%1==0))
     ratio=breadth_ratio(p.advances,p.declines)
     if ratio.empty:return out
+    observed=ratio.dropna()
+    if len(observed):
+        out['observed_session']=str(observed.index[-1].date())
+        out['source_freshness']='CURRENT' if observed.index[-1]==pd.Timestamp(expected_last) else 'STALE'
     n=0
     for valid in ratio.notna().iloc[::-1]:
         if not valid:break
         n+=1
-    out['consecutive_valid_sessions']=n;out['recent_10_complete']=n>=10
-    for key,val in [('breadth_ratio',ratio.iloc[-1]),('zbt_ema10',ema(ratio).iloc[-1]),('expansion_days_10',expansion_count(ratio).iloc[-1])]:
+    out['consecutive_valid_sessions']=n
+    out['recent_10_complete']=n>=10
+    out['ema100_warmup_complete']=n>=100
+    if n:
+        out['advances']=int(p.advances.iloc[-1])
+        out['declines']=int(p.declines.iloc[-1])
+    for key,val in [('breadth_ratio',ratio.iloc[-1]),('zbt_ema10',ema(ratio).iloc[-1]),
+                    ('expansion_days_10',expansion_count(ratio).iloc[-1])]:
         out[key]=float(val) if np.isfinite(val) else None
     return out
-
 
 def validate_dataset(name,frame,meta,sessions,expected_last):
     flags=[]
@@ -51,11 +65,24 @@ def validate_dataset(name,frame,meta,sessions,expected_last):
     missing_columns=[c for c in required if c not in frame]
     if missing_columns: flags.append('MISSING_COLUMNS:'+','.join(missing_columns))
     expected=sessions[(sessions>=frame.index.min()) & (sessions<=frame.index.max())]
-    missing=len(expected.difference(frame.index))
+    missing_dates=expected.difference(frame.index)
+    missing=len(missing_dates)
     if missing: flags.append('MISSING_SESSIONS')
-    if len(frame.index.difference(sessions)): flags.append('NON_SESSION_DATES')
+    if name=='vix':
+        result['missing_xnys_dates']=[str(day.date()) for day in missing_dates]
+    non_session_dates=frame.index.difference(sessions)
+    if name=='vix':
+        # Keep Cboe raw observations intact for auditing; use only XNYS sessions
+        # for VIX validation. Missing real XNYS dates still fail closed.
+        check_frame=frame.loc[frame.index.isin(sessions)]
+        result['excluded_non_xnys_session_count']=len(non_session_dates)
+        result['excluded_non_xnys_dates']=[str(day.date()) for day in non_session_dates]
+        if check_frame.empty:flags.append('NO_XNYS_OBSERVATIONS')
+    else:
+        check_frame=frame
+        if len(non_session_dates):flags.append('NON_SESSION_DATES')
     if not missing_columns:
-        values=frame[required].apply(pd.to_numeric,errors='coerce')
+        values=check_frame[required].apply(pd.to_numeric,errors='coerce')
         if not np.isfinite(values.to_numpy()).all(): flags.append('NONFINITE_VALUES')
         if name=='breadth':
             if (values<0).any().any() or (values.sum(axis=1)<=0).any() or (values%1!=0).any().any(): flags.append('INVALID_COUNTS')
@@ -84,7 +111,7 @@ def validate_dataset(name,frame,meta,sessions,expected_last):
         comparable=meta.get('reference_comparability')
         if not isinstance(comparable,dict) or comparable.get('status')!='reviewed_comparable' or not comparable.get('evidence'):
             flags.append('REFERENCE_COMPARABILITY_UNVERIFIED')
-    fresh=frame.index.max()==pd.Timestamp(expected_last)
+    fresh=(not check_frame.empty and check_frame.index.max()==pd.Timestamp(expected_last))
     return {**result,'reason_codes':reason_codes(flags,fresh,len(frame)),'history_valid':not flags,'fresh':fresh,
             'freshness':'CURRENT' if fresh else 'STALE', 'missing_count':missing,
             'validation_status':'PASSED_RESEARCH' if not flags else 'DATA_HOLD',

@@ -101,4 +101,35 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaises(ValueError):run(Path(d)/'input',Path(d)/'out',as_of='2026-10-19T08:57:00Z',config={'zbt':{'warmup_sessions':10}})
 
 
+    def test_recent_nyse_diagnostics_are_visible_but_do_not_activate_ac(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);inp=root/'input';inp.mkdir();out=root/'out'
+            sessions=pd.bdate_range('2025-01-02',periods=140)
+            pd.DataFrame({'date':sessions,'advances':80,'declines':20}).to_csv(
+                inp/'breadth.csv',index=False)
+            meta={'breadth':{'source':'https://example.org/NYSE-research-only',
+                             'retrieval_timestamp':'2026-10-19T18:00:00Z',
+                             'definition':'composite candidate',
+                             'adjustment_method':'none',
+                             'review_status':'documented'}}
+            (inp/'metadata.json').write_text(json.dumps(meta))
+            result=run(inp,out,as_of='2026-10-19T18:30:00Z',
+                       start='2025-01-02',sessions_override=sessions,
+                       synthetic=True,bootstrap_draws=20)
+            q=json.loads((out/'data_quality.json').read_text())
+            b=q['breadth_diagnostics']
+            self.assertEqual(b['observed_session'],str(sessions[-1].date()))
+            self.assertEqual(b['source_freshness'],'CURRENT')
+            self.assertEqual(b['source'],meta['breadth']['source'])
+            self.assertEqual((b['advances'],b['declines']),(80,20))
+            self.assertEqual(b['consecutive_valid_sessions'],140)
+            self.assertTrue(b['ema100_warmup_complete'])
+            self.assertFalse(b['eligible_for_signal'])
+            self.assertFalse(b['ndr_comparability_validated'])
+            self.assertFalse(result['assessment']['SAFE_TO_ACT'])
+            self.assertEqual(result['assessment']['signals']['A']['SIGNAL_STATUS'],'DATA_HOLD')
+            self.assertEqual(result['assessment']['signals']['C']['SIGNAL_STATUS'],'DATA_HOLD')
+            self.assertIn('observed_session',(out/'latest.md').read_text())
+
+
 if __name__=='__main__':unittest.main()

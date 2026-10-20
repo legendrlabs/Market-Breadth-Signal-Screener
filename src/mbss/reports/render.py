@@ -84,7 +84,7 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
            '기존 장기 주식모으기·인컴 분배금 TQQQ 재투자·Mechanical Top15·K-Mechanical·SSM 규칙은 변경하지 않습니다. 전술 유동성 판단 보조용 연구 결과이며 자금 투입 비중은 아직 승인되지 않았습니다.',
            '', '## Daily signal states','',md_table(['Signal','Current state','Current signal date','Last signal','Last lifecycle','Seasonality','Data quality','Hold reasons'],[[s,r['SIGNAL_STATUS'],r['SIGNAL_DATE'],r.get('LAST_SIGNAL_DATE'),r.get('LAST_SIGNAL_STATUS'),r.get('SEASONALITY_STATUS'),r['DATA_QUALITY'],', '.join(r.get('DATA_HOLD_REASONS',[]))] for s,r in assessment['signals'].items()]),
            '', '## Observed market data and indicators','',md_table(['Metric','Value'],list(assessment['metrics'].items())),
-           '', '## Data quality','',md_table(['Dataset','Rows','From','Through','History valid','Freshness','Missing sessions','Reason codes','Flags'],[[n,q.get('rows'),q.get('start'),q.get('end'),q.get('history_valid'),q.get('freshness'),q.get('missing_count'),', '.join(q.get('reason_codes',[])),', '.join(q.get('flags',[]))] for n,q in quality['datasets'].items()]),
+           '', '## Data quality','',md_table(['Dataset','Rows','From','Through','History valid','Freshness','Missing XNYS sessions','Excluded non-XNYS','Reason codes','Flags'],[[n,q.get('rows'),q.get('start'),q.get('end'),q.get('history_valid'),q.get('freshness'),q.get('missing_count'),q.get('excluded_non_xnys_session_count',0),', '.join(q.get('reason_codes',[])),', '.join(q.get('flags',[]))] for n,q in quality['datasets'].items()]),
            '',f"Calendar valid: {quality['calendar'].get('valid')}. {quality['calendar'].get('error','')}",
            '', '## Independent claim audit','',md_table(['Signal','Published n','Horizon','Status','Complete n','Published mean','Next-open mean'],[[c['signal'],c['published_n'],str(c['published_months'])+'m',c['status'],c['reproduced_complete_n_in_claim_scope'],pct(c['published_mean']),pct(c['observed_mean_next_open'])] for c in claims]),
            '', 'Reference-only comparison (same-day close is not an executable after-close entry):','',
@@ -96,7 +96,7 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     else:lines.append('DATA_HOLD: no validated historical outcome sample. Performance and win rates are unavailable; no zero return is imputed.')
     diagnostics=quality.get('breadth_diagnostics',{})
     lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
-            'These raw-source diagnostics are excluded from signal detection and backtest samples; source universe/NDR comparison remains unverified. Missing sessions reset the EMA and ten-session window.',
+            'Source-only NYSE observations, not Carson/NDR-validated A/C signals. As-of versus last observed NYSE session, consecutive valid sessions, and 100-session EMA warmup are reported separately. Missing sessions reset the EMA and ten-session window. SAFE_TO_ACT remains False.',
             '',md_table(['Metric','Value'],list(diagnostics.items()))]
     aux=quality.get('auxiliary_breadth',{})
     lines+=['','## SPY holdings breadth proxy — auxiliary only','',
