@@ -25,6 +25,7 @@ CBOE_URL = 'https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.
 FRED_GRAPH_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv'
 FRED_TABLE_URL = 'https://fred.stlouisfed.org/data/VIXCLS'
 FRED_SERIES_URL = 'https://fred.stlouisfed.org/series/VIXCLS'
+YAHOO_VIX_URL = 'https://finance.yahoo.com/quote/%5EVIX/history/'
 
 
 def parse_fred_vixcls(body):
@@ -86,6 +87,46 @@ def parse_fred_vixcls_table(body):
     index = pd.to_datetime(dates, format='%Y-%m-%d',errors='raise')
     return pd.Series([value for date,value in rows],
                      index=pd.DatetimeIndex(index),name='VIXCLS').sort_index()
+
+
+def parse_yahoo_vix_observations(body):
+    """Read only timestamped historical closes for the literal ^VIX index."""
+    root = json.loads(body)
+    result = root['chart']['result']
+    if not isinstance(result,list) or len(result)!=1:
+        raise ValueError('Yahoo chart has no unique VIX result')
+    data = result[0]
+    if data.get('meta',{}).get('symbol') != '^VIX':
+        raise ValueError('Yahoo chart is not the ^VIX index')
+    timestamps = data['timestamp']
+    closes = data['indicators']['quote'][0]['close']
+    if not isinstance(timestamps,list) or not isinstance(closes,list) or len(timestamps)!=len(closes):
+        raise ValueError('Yahoo timestamps/close array invalid')
+    dates = pd.to_datetime(timestamps,unit='s',utc=True).tz_convert('America/New_York').tz_localize(None).normalize()
+    if dates.has_duplicates:
+        raise ValueError('Yahoo daily dates duplicated')
+    return pd.Series([str(v) if v is not None else '.' for v in closes],
+                     index=dates,name='VIXCLS').sort_index()
+
+
+def yahoo_overlap_evidence(candidate,primary,gaps,tolerance=0.02):
+    """Require actual Cboe values on BOTH sides to agree with Yahoo ^VIX.
+
+    A matching pair is a same-index cross-distributor check, not an independent
+    reconstruction or proof of historical VIX methodology.
+    """
+    overlap = candidate.index.intersection(primary.index)
+    before = overlap[overlap < gaps.min()]
+    after = overlap[overlap > gaps.max()]
+    checks = []
+    for date in overlap:
+        observed=_positive_real(candidate.loc[date])
+        source=float(primary.loc[date,'close'])
+        valid=observed is not None and abs(observed-source)<=tolerance
+        checks.append({'date':str(date.date()),'cboe_close':source,
+                       'yahoo_close':observed,'match':bool(valid)})
+    accepted=bool(len(before) and len(after) and len(checks)>=2 and all(x['match'] for x in checks))
+    return accepted,checks
 
 
 def _positive_real(raw):
@@ -183,9 +224,16 @@ def recover_missing_vix(directory, raw_directory, metadata, start='2000-01-01',
     observations = None
     any_parsed = False
     raw_directory.mkdir(parents=True, exist_ok=True)
-    for source_url, parser, filename in (
-        (url, parse_fred_vixcls, 'fred_vixcls.csv'),
-        (FRED_TABLE_URL, parse_fred_vixcls_table, 'fred_vixcls_table.html'),
+    yahoo_query='https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?' + urlencode({
+        'period1':int((gaps.min()-pd.Timedelta(days=7)).tz_localize('UTC').timestamp()),
+        'period2':int((gaps.max()+pd.Timedelta(days=8)).tz_localize('UTC').timestamp()),
+        'interval':'1d'
+    })
+    selected_origin=FRED_SERIES_URL
+    for source_url, parser, filename, origin in (
+        (url, parse_fred_vixcls, 'fred_vixcls.csv', FRED_SERIES_URL),
+        (FRED_TABLE_URL, parse_fred_vixcls_table, 'fred_vixcls_table.html', FRED_SERIES_URL),
+        (yahoo_query, parse_yahoo_vix_observations, 'yahoo_vix_chart.json', YAHOO_VIX_URL),
     ):
         source_attempt = {'url': source_url, 'status': 'PENDING', 'raw_sha256': None}
         snapshot['download_attempts'].append(source_attempt)
@@ -202,7 +250,14 @@ def recover_missing_vix(directory, raw_directory, metadata, start='2000-01-01',
             if any(day not in candidate.index or _positive_real(candidate.loc[day]) is None for day in gaps):
                 source_attempt.update(status='OBSERVED_DATES_INCOMPLETE')
                 continue
+            if origin == YAHOO_VIX_URL:
+                comparable,checks=yahoo_overlap_evidence(candidate,frame,gaps)
+                source_attempt['overlap_checks']=checks
+                if not comparable:
+                    source_attempt['status']='OVERLAP_RECONCILIATION_FAILED'
+                    continue
             observations = candidate
+            selected_origin=origin
             source_attempt['status'] = 'OBSERVATIONS_COMPLETE'
             snapshot['download_url'] = source_url
             snapshot['raw_file'] = str(raw_file)
@@ -214,7 +269,7 @@ def recover_missing_vix(directory, raw_directory, metadata, start='2000-01-01',
     if observations is None:
         snapshot['unresolved_xnys_dates'] = snapshot['identified_missing_xnys_dates']
         errors = [a.get('error',a['status']) for a in snapshot['download_attempts']]
-        return finish('FRED_OBSERVATIONS_INCOMPLETE' if any_parsed else 'FRED_DOWNLOAD_OR_PARSE_FAILED',
+        return finish('SECONDARY_OBSERVATIONS_INCOMPLETE' if any_parsed else 'SECONDARY_DOWNLOAD_OR_PARSE_FAILED',
                       '; '.join(errors))
 
     recovered = []
@@ -225,11 +280,14 @@ def recover_missing_vix(directory, raw_directory, metadata, start='2000-01-01',
         if value is None:
             unresolved.append(date_string)
             continue
-        recovered.append({'date': date_string, 'close': value, 'source': FRED_SERIES_URL,
-                          'retrieval_timestamp': stamp.isoformat(),
-                          'source_raw_sha256': snapshot['raw_sha256'],
-                          'origin': 'Cboe VIX (FRED redistribution)',
-                          'independent_confirmation': False})
+        recovered.append({'date':date_string,
+                          'close':round(value,2) if selected_origin==YAHOO_VIX_URL else value,
+                          'provider_raw_close':value,
+                          'source':selected_origin,
+                          'retrieval_timestamp':stamp.isoformat(),
+                          'source_raw_sha256':snapshot['raw_sha256'],
+                          'origin':'Cboe-index secondary distribution',
+                          'independent_confirmation':False})
     snapshot['unresolved_xnys_dates'] = unresolved
     if unresolved:
         # Fail atomic: never partially fill if any expected session lacks an
@@ -243,12 +301,15 @@ def recover_missing_vix(directory, raw_directory, metadata, start='2000-01-01',
         return finish('MERGE_VALIDATION_FAILED')
     original_meta = dict(metadata['vix'])
     supplemental = {x['date']: x for x in recovered}
-    original_meta['adjustment_method'] = 'Cboe close; identified XNYS gaps supplied by FRED VIXCLS observed closes, not imputed'
+    original_meta['adjustment_method'] = 'Cboe close; XNYS gaps from observed secondary Cboe-index values, not imputed'
     original_meta['supplemental_observations'] = supplemental
-    original_meta['secondary_source'] = FRED_SERIES_URL
+    original_meta['secondary_source'] = selected_origin
     original_meta['secondary_source_is_independent'] = False
     original_meta['secondary_raw_sha256'] = snapshot['raw_sha256']
     _csv_atomic(file, merged)
     metadata['vix'] = original_meta
     snapshot['recovered'] = recovered
-    return finish('RECOVERED_OBSERVED_FRED_CBOE_REPUBLICATION')
+    snapshot['secondary_source']=selected_origin
+    attempt['source']=selected_origin
+    return finish('RECOVERED_OBSERVED_YAHOO_CBOE_DISTRIBUTION' if selected_origin==YAHOO_VIX_URL
+                  else 'RECOVERED_OBSERVED_FRED_CBOE_REPUBLICATION')

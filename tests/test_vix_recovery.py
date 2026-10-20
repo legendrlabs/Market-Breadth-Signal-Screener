@@ -10,8 +10,9 @@ import pandas as pd
 
 from mbss.collectors.quality import validate_dataset
 from mbss.collectors.vix_recovery import (
-    CBOE_URL, FRED_SERIES_URL, FRED_TABLE_URL, parse_fred_vixcls,
-    parse_fred_vixcls_table, recover_missing_vix,
+    CBOE_URL, FRED_SERIES_URL, FRED_TABLE_URL, YAHOO_VIX_URL,
+    parse_fred_vixcls, parse_fred_vixcls_table, parse_yahoo_vix_observations,
+    recover_missing_vix,
 )
 from mbss.pipeline import run
 
@@ -88,7 +89,7 @@ class VixObservedRecoveryTests(unittest.TestCase):
                 self.cboe.to_csv(Path(d,'vix.csv'),index_label='date')
                 original=Path(d,'vix.csv').read_bytes()
                 result,meta,snapshot=self.perform(d,fred=body)
-                self.assertEqual(result['status'],'FRED_OBSERVATIONS_INCOMPLETE')
+                self.assertEqual(result['status'],'SECONDARY_OBSERVATIONS_INCOMPLETE')
                 self.assertEqual(original,Path(d,'vix.csv').read_bytes())
                 self.assertNotIn('supplemental_observations',meta['vix'])
                 self.assertEqual(snapshot['unresolved_xnys_dates'],['1999-12-31'])
@@ -107,7 +108,7 @@ class VixObservedRecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             def fail(*args):raise OSError('no network')
             result,meta,snapshot=self.perform(d,opener=fail)
-            self.assertEqual(result['status'],'FRED_DOWNLOAD_OR_PARSE_FAILED')
+            self.assertEqual(result['status'],'SECONDARY_DOWNLOAD_OR_PARSE_FAILED')
             self.assertIn('no network',result['error'])
             self.assertEqual(len(pd.read_csv(Path(d,'vix.csv'))),2)
             self.assertNotIn('supplemental_observations',meta['vix'])
@@ -133,7 +134,7 @@ class VixObservedRecoveryTests(unittest.TestCase):
                          index=pd.DatetimeIndex(['1999-12-30','2000-01-04'],name='date')).to_csv(
                              Path(d,'vix.csv'),index_label='date')
             r,m,s=self.perform(d,sessions=sessions)
-            self.assertEqual(s['status'],'FRED_OBSERVATIONS_INCOMPLETE')
+            self.assertEqual(s['status'],'SECONDARY_OBSERVATIONS_INCOMPLETE')
             self.assertEqual(s['unresolved_xnys_dates'],['1999-12-31','2000-01-03'])
 
 
@@ -172,9 +173,63 @@ class VixObservedRecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             original=self.cboe.to_csv(Path(d,'vix.csv'),index_label='date')
             result,meta,audit=self.perform(d,opener=opener)
-            self.assertEqual(result['status'],'FRED_DOWNLOAD_OR_PARSE_FAILED')
+            self.assertEqual(result['status'],'SECONDARY_DOWNLOAD_OR_PARSE_FAILED')
             self.assertEqual(len(pd.read_csv(Path(d,'vix.csv'))),2)
             self.assertEqual(audit['recovered'],[])
+
+
+    def yahoo_fixture(self, missing=24.639999389648438, before=24.760000228881836,
+                      after=24.209999084472656, symbol='^VIX'):
+        dates=['1999-12-30','1999-12-31','2000-01-03']
+        timestamps=[int(pd.Timestamp(day+' 16:00:00',tz='America/New_York').timestamp())
+                    for day in dates]
+        return json.dumps({'chart':{'result':[{'meta':{'symbol':symbol},
+                     'timestamp':timestamps,'indicators':{'quote':[{
+                       'close':[before,missing,after]}]}}],'error':None}}).encode()
+
+    def test_yahoo_index_requires_exact_symbol_and_dated_close(self):
+        series=parse_yahoo_vix_observations(self.yahoo_fixture())
+        self.assertAlmostEqual(float(series.loc['1999-12-31']),24.64,places=4)
+        with self.assertRaises(ValueError):
+            parse_yahoo_vix_observations(self.yahoo_fixture(symbol='SPY'))
+        with self.assertRaises(ValueError):
+            parse_yahoo_vix_observations(b'{"chart":{"result":null}}')
+
+    def test_yahoo_observation_reconciles_both_neighbor_cboe_dates(self):
+        def opener(request,timeout):
+            if request.full_url.startswith('https://query1.finance.yahoo.com/'):
+                self.assertIn('%5EVIX',request.full_url)
+                return Response(self.yahoo_fixture())
+            raise TimeoutError('FRED provider inaccessible')
+        with tempfile.TemporaryDirectory() as d:
+            r,meta,audit=self.perform(d,opener=opener)
+            self.assertEqual(r['status'],'RECOVERED_OBSERVED_YAHOO_CBOE_DISTRIBUTION')
+            self.assertEqual(audit['download_url'].split('?')[0],
+                             'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX')
+            self.assertEqual(audit['secondary_source'],YAHOO_VIX_URL)
+            self.assertEqual(audit['recovered'][0]['close'],24.64)
+            self.assertAlmostEqual(audit['recovered'][0]['provider_raw_close'],24.64,places=4)
+            self.assertEqual(len(audit['download_attempts']),3)
+            self.assertEqual(audit['download_attempts'][2]['status'],'OBSERVATIONS_COMPLETE')
+            self.assertTrue(all(x['match'] for x in
+                            audit['download_attempts'][2]['overlap_checks']))
+            self.assertEqual(meta['vix']['supplemental_observations']['1999-12-31']['source'],YAHOO_VIX_URL)
+            self.assertFalse(meta['vix']['secondary_source_is_independent'])
+            self.assertAlmostEqual(pd.read_csv(Path(d,'vix.csv')).loc[1,'close'],24.64)
+
+    def test_yahoo_unmatched_neighbor_is_not_accepted(self):
+        def opener(request,timeout):
+            if 'query1.finance.yahoo.com' in request.full_url:
+                return Response(self.yahoo_fixture(before=29.99))
+            raise TimeoutError('FRED provider inaccessible')
+        with tempfile.TemporaryDirectory() as d:
+            r,meta,audit=self.perform(d,opener=opener)
+            self.assertEqual(r['status'],'SECONDARY_OBSERVATIONS_INCOMPLETE')
+            self.assertEqual(audit['download_attempts'][2]['status'],
+                             'OVERLAP_RECONCILIATION_FAILED')
+            self.assertFalse(audit['download_attempts'][2]['overlap_checks'][0]['match'])
+            self.assertEqual(len(pd.read_csv(Path(d,'vix.csv'))),2)
+            self.assertNotIn('supplemental_observations',meta['vix'])
 
     def test_full_report_marks_fred_row_and_stays_no_trade(self):
         with tempfile.TemporaryDirectory() as d:
