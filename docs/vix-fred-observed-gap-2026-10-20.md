@@ -52,3 +52,15 @@ GitHub Actions `39373679546`에서 FRED Graph CSV와 공식 Table Data 모두 `T
 출처는 보완된 특정 날짜의 `observations.csv`에만 `https://finance.yahoo.com/quote/%5EVIX/history/`로 기록하고, 기본 Cboe 관측 일자는 그대로 유지한다. Yahoo 비교는 *다른 배포 경로의 동일 지수 값 일관성* 검사일 뿐 역사적 재계산에 의한 독립 지수 검증이 아니다.
 
 새 GitHub Actions 실행에서 실제 Yahoo 과거 ^VIX 관측값이 내려오는지 확인하기 전에는 복구 완료로 판정하지 않는다.
+
+## 2026-10-20 실제 실행 재검증 — 결측 해소 완료
+
+- **main 커밋** `9ed6a0dffb3d8960062205650e13ccf9e602fdaf` / **GitHub Actions** [#39374487312](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/actions/runs/39374487312).
+- 실제 Cboe 원본 다운로드 성공(원본 SHA256 `dd316faa6120a323845988c180d9d2297af29c7d4495c84d6e3e76af3f19d199`). FRED Graph CSV·HTML 모두 읽기 타임아웃.
+- Yahoo `^VIX`의 **원본 시계열 JSON** 다운로드 성공, SHA256 `983818f355931c5eb3bf593f6cdc02d3eb878c48564713dbba3122789c1f8780`. 1999-12-31 Yahoo 원시 실수 `24.639999389648438` → Cboe 발행 소수 둘째 자리 `24.64`로 표준화.
+- Cboe/Yahoo 공통 날짜 `1999-12-27,28,29,30`, `2000-01-03,04,05,06,07`의 9개 종가 **9/9 모두 오차 허용(0.02p)** 통과. 원 Cboe 관측일은 변경하지 않음.
+- `runs/daily/vix_recovery.json`: `RECOVERED_OBSERVED_YAHOO_CBOE_DISTRIBUTION`, `recovered[0].date=1999-12-31`, `recovered[0].close=24.64`, `unresolved_xnys_dates=[]`. 복구 날짜의 행별 출처는 Yahoo ^VIX로 보존.
+- `runs/daily/data_quality.json.datasets.vix`: `PASSED_RESEARCH`, `missing_count=0`, `fresh=true`, `history_valid=true`. 전체 `status=DATA_HOLD` 및 `SAFE_TO_ACT=False` 유지. NYSE Breadth의 `UNIVERSE_UNVERIFIED`, `REFERENCE_COMPARABILITY_UNVERIFIED`는 해결되지 않았다.
+- 이 성공은 Cboe가 산출한 같은 VIX 지수의 **서로 다른 배포 경로(Cboe·Yahoo) 값 대조**다. FRED 원문은 웹 조사에서 24.64가 확인되었지만 실전 러너에서 원문 데이터 다운로드가 성공한 것은 아니다. Yahoo도 독립 산출기관이 아니다.
+
+이후 CI/일일 보고에서 VIX 데이터 품질이 다시 실패하면 같은 날짜의 자동 복구를 보장한 것으로 간주하지 않는다. 라이브 실행별 감사 JSON과 SHA를 기준으로 판단한다.
