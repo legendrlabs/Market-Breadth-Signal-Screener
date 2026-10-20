@@ -10,7 +10,8 @@ import pandas as pd
 
 from mbss.collectors.quality import validate_dataset
 from mbss.collectors.vix_recovery import (
-    CBOE_URL, FRED_SERIES_URL, FRED_TABLE_URL, parse_fred_vixcls,\n    parse_fred_vixcls_table, recover_missing_vix,
+    CBOE_URL, FRED_SERIES_URL, FRED_TABLE_URL, parse_fred_vixcls,
+    parse_fred_vixcls_table, recover_missing_vix,
 )
 from mbss.pipeline import run
 
