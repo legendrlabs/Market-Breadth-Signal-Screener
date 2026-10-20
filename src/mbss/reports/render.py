@@ -75,7 +75,7 @@ def md_table(headers,rows):
     return '\n'.join(['| '+' | '.join(headers)+' |','|'+'|'.join(['---']*len(headers))+'|']+['| '+' | '.join(cell(x) for x in row)+' |' for row in rows])
 
 
-def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False,external_context=None,wsj_reconciliation=None):
+def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False,external_context=None,wsj_reconciliation=None,publisher_reconciliation=None):
     def pct(v):return f'{v*100:+.2f}%' if v is not None and np.isfinite(v) else '—'
     title='MBSS v0.1.3 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
     status=assessment['SIGNAL_STATUS'];last=assessment['as_of_session'] or 'unknown'
@@ -98,6 +98,11 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
             'Source-only NYSE observations, not Carson/NDR-validated A/C signals. As-of versus last observed NYSE session, consecutive valid sessions, and 100-session EMA warmup are reported separately. Missing sessions reset the EMA and ten-session window. SAFE_TO_ACT remains False.',
             '',md_table(['Metric','Value'],list(diagnostics.items()))]
+    publisher=publisher_reconciliation or {'status':'NO_PUBLISHER_PAGE'}
+    lines+=['','## McClellan public page vs McClellan XLS — SAME_PUBLISHER_REFERENCE_ONLY','',
+            'This checks two public representations from the same publisher; it is not an independent WSJ value or Carson/NDR validation. Stale page, missing XLS, parse failures or mismatches do not produce A/C signals or change SAFE_TO_ACT.',
+            '',md_table(['Field','Value'],[(k,v) for k,v in publisher.items() if k not in ('flags',)]),
+            '', 'Quality flags: '+', '.join(publisher.get('flags',[]))]
     wsj=wsj_reconciliation or {'status':'NO_WSJ_REFERENCE','rows':[]}
     lines+=['','## WSJ vs McClellan NYSE count audit — SOURCE_REFERENCE_ONLY','',
             'Explicitly supplied dated WSJ FINAL snapshots are compared with raw McClellan counts only. No WSJ page scraping, no authentication of user-supplied finality, no NDR comparability, no A/C backtest inputs, and no trading eligibility.',
