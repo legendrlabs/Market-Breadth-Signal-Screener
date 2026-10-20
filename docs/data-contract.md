@@ -59,3 +59,11 @@ The issuer file is SPY holdings, not certified index membership. Unsupported tic
 External context requires finite numeric values; null/missing gets MISSING_VALUE, nonfinite/boolean/non-numeric gets INVALID_VALUE and null. EXTERNAL_CONTEXT_LOAD_FAILED is visible in JSON, Markdown and HTML.
 
 The immutable report also preserves the exact normalized auxiliary input as auxiliary_snapshot.json and hashes it in run_manifest.json, including invalid inputs for diagnosis. The assessed auxiliary_breadth.json remains separate. Parser failures retain raw download paths/hashes in collection_attempts; bytes remain outside source releases.
+
+## v0.1.3 VIX 실제 거래일 결측 보완 — 2026-10-20
+
+Cboe VIX 원본 CSV의 NYSE 세션 누락과 NYSE 비거래일 원자료 행은 별개의 문제다. 모든 원문 관측을 raw Cboe 입력에 그대로 보존하고, 정상 XNYS 거래일 결측만 `missing_xnys_dates`로 식별한다. SEC 역사 기록이 1999-12-31을 실제 조기 폐장 거래일로 확인하며, FRED `VIXCLS`는 같은 날짜의 **24.64**를 게시한다. 재배포처 값은 실제 관측에 한정하고 그 자체를 독립 검증이라고 표현하지 않는다.
+
+수집기가 새로운 Cboe 데이터를 성공적으로 받아온 경우에만 FRED VIXCLS와 교차 대조한다. 완결된 세션 중 내부 결측일만 요청하며, 모든 결측일의 유효한 `VIXCLS` 숫자값(>0, finite)이 실제 확인돼야 한 번에 복구한다. 다운로드/달력/파싱 실패, 점(`.`)/빈칸/비숫자/0/음수, 날짜 중복 또는 누락, 20일 초과 갭은 보완을 중지한다. 원래 Cboe 관측값을 FRED 수치로 덮어쓰지 않는다.
+
+`data/normalized/vix_recovery.json`은 복구 이벤트와 FRED 원문 해시를 기록하고 같은 실행 보고서 `vix_recovery.json`으로 복사한다. `metadata.json.vix.supplemental_observations`은 행별 FRED 재배포 출처, 수집시각, 원문 SHA256을 보존하고, `observations.csv`는 정확히 해당 날짜에만 FRED 출처를 표시한다. 완전 복구 시 VIX 단일 데이터셋의 `PASSED_RESEARCH`가 가능하지만, `SAFE_TO_ACT=False`와 독립 WSJ/NDR A/C 검증 보류는 유지한다.

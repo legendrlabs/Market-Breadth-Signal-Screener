@@ -94,6 +94,10 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     if summary:
         lines.append(md_table(['Signal','Months','Complete n','Immature','Mean','Median','Win rate','Overlap clusters','Cluster-bootstrap 95%'],[[s['signal'],s['months'],s['n'],s['immature'],pct(s.get('mean')),pct(s.get('median')),pct(s.get('win_rate')),s.get('overlap_clusters'),' / '.join(pct(v) for v in s['mean_cluster_bootstrap_95']) if s.get('mean_cluster_bootstrap_95') else '—'] for s in summary]))
     else:lines.append('DATA_HOLD: no validated historical outcome sample. Performance and win rates are unavailable; no zero return is imputed.')
+    vix_patch=quality.get('vix_recovery',{'status':'NOT_ATTEMPTED'})
+    lines+=['','## VIX observed-value recovery — Cboe-origin FRED redistribution','',
+            'A missing completed XNYS session may be supplied only from an actual dated FRED VIXCLS observation; no interpolation or forward fill. Cboe raw file remains separately archived. FRED republishes Cboe observations and is not independent validation.',
+            '',md_table(['Metric','Value'],list(vix_patch.items()))]
     diagnostics=quality.get('breadth_diagnostics',{})
     lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
             'Source-only NYSE observations, not Carson/NDR-validated A/C signals. As-of versus last observed NYSE session, consecutive valid sessions, and 100-session EMA warmup are reported separately. Missing sessions reset the EMA and ten-session window. SAFE_TO_ACT remains False.',

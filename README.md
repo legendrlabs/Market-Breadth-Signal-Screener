@@ -118,3 +118,9 @@ WSJ 일별 NYSE 상승·하락 수는 공개 HTML 열람에서 동적 로딩만 
 2026-10-19 McClellan 공개 페이지: NYSE 상승 961/하락 1,751, 하락 우위 790개. 이는 하루 관측값이며 ZBT EMA10이 아닙니다. **발행사 자체 두 표현을 대조하는 것일 뿐, WSJ 독립 확정치/NDR/Carson 비교 완료가 아닙니다.** A/C `DATA_HOLD`, `SAFE_TO_ACT=False` 유지. 실제 수집이 시작된 실행의 품질 JSON을 확인해야 하며, 이 설명만으로 자동 수집 성공을 단정하지 않습니다.
 
 원문과 구현 경계: [McClellan 웹/XLS 비교](docs/mcclellan-publisher-audit-2026-10-20.md).
+
+## 2026-10-20 VIX 실측 결측 보완 — FRED VIXCLS (v0.1.3 연구용)
+
+1999-12-31은 SEC가 확인한 **실제 NYSE 오후 1시 조기 폐장 세션**이며 FRED VIXCLS의 원 관측값은 **24.64**다. 따라서 당시 Cboe VIX_History.csv의 단일 누락일을 거래일 아님으로 삭제하지 않는다. Cboe VIX 신규 다운로드가 성공했고 XNYS 달력에서 실제 결측을 찾으면 FRED가 재배포한 Cboe 관측값이 **각 결측 날짜에 실제 존재하는 경우에만** 원자료 보존과 함께 계산용 vix.csv에 추가한다. 보간·대치·임의 상수는 사용하지 않으며 다운로드 실패나 미관측은 DATA_HOLD다.
+
+복구 날짜 및 값과 FRED 원문 해시/출처는 `vix_recovery.json` 및 보고서에, 복구된 행의 출처는 `observations.csv`에 기록한다. 이 출처는 독립된 산출기관의 인증이 아니며, NYSE A/C와 전체 `SAFE_TO_ACT=False`는 유지한다. [자료·구현·검증 근거](docs/vix-fred-observed-gap-2026-10-20.md).

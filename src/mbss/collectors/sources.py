@@ -127,6 +127,12 @@ def collect(destination,start='2000-01-01',timeout=8,aux_breadth=False):
                     continue
             frame.to_csv(destination/(name+'.csv'),index_label='date')
             metadata[name]=new_meta
+    # Only patch missing *observed* XNYS dates after a successful fresh Cboe
+    # download; FRED republishes Cboe and is never a substitute for Cboe failure.
+    from mbss.collectors.vix_recovery import recover_missing_vix
+    fresh_cboe=any(a['dataset']=='vix' and a['status']=='DOWNLOADED_NOT_YET_VALIDATED' for a in attempts)
+    attempts.append(recover_missing_vix(destination,raw,metadata,start=start,timeout=timeout,
+                                       opener=urlopen,primary_downloaded=fresh_cboe))
     # Publisher HTML is an independent *format*, not an independent provider.
     # A missing/invalid page never replaces or validates the NYSE XLS signal input.
     from mbss.collectors.mcclellan_page import collect_publisher_page
