@@ -10,7 +10,7 @@ import pandas as pd
 
 from mbss.collectors.quality import validate_dataset
 from mbss.collectors.vix_recovery import (
-    CBOE_URL, FRED_SERIES_URL, parse_fred_vixcls, recover_missing_vix,
+    CBOE_URL, FRED_SERIES_URL, FRED_TABLE_URL, parse_fred_vixcls,\n    parse_fred_vixcls_table, recover_missing_vix,
 )
 from mbss.pipeline import run
 
@@ -134,6 +134,46 @@ class VixObservedRecoveryTests(unittest.TestCase):
             r,m,s=self.perform(d,sessions=sessions)
             self.assertEqual(s['status'],'FRED_OBSERVATIONS_INCOMPLETE')
             self.assertEqual(s['unresolved_xnys_dates'],['2000-01-03'])
+
+
+    def test_fred_published_html_table_is_fallback_when_csv_times_out(self):
+        html=(b'<html><h1>Table Data - CBOE Volatility Index: VIX</h1>'
+              b'<p>Series ID VIXCLS</p><p>Source Chicago Board Options Exchange</p>'
+              b'<table><tr><th>DATE</th><th>VALUE</th></tr>'
+              b'<tr><td>1999-12-30</td><td>24.76</td></tr>'
+              b'<tr><td>1999-12-31</td><td>24.64</td></tr>'
+              b'<tr><td>2000-01-03</td><td>24.21</td></tr></table></html>')
+        self.assertEqual(parse_fred_vixcls_table(html).loc['1999-12-31'],'24.64')
+        def opener(request,timeout):
+            if 'fredgraph.csv' in request.full_url:
+                raise TimeoutError('read operation timed out')
+            self.assertEqual(request.full_url,FRED_TABLE_URL)
+            return Response(html)
+        with tempfile.TemporaryDirectory() as d:
+            result,meta,audit=self.perform(d,opener=opener)
+            self.assertEqual(result['status'],'RECOVERED_OBSERVED_FRED_CBOE_REPUBLICATION')
+            self.assertEqual(audit['download_url'],FRED_TABLE_URL)
+            self.assertEqual([a['status'] for a in audit['download_attempts']],
+                             ['FETCH_OR_PARSE_FAILED','OBSERVATIONS_COMPLETE'])
+            self.assertTrue((Path(d)/'raw/fred_vixcls_table.html').is_file())
+            self.assertAlmostEqual(pd.read_csv(Path(d,'vix.csv')).loc[1,'close'],24.64)
+
+    def test_unverified_fred_html_page_never_supplies_observation(self):
+        html=(b'<html><h1>Some other volatility data</h1>'
+              b'<p>Series ID FAKE</p><table>'
+              b'<tr><th>DATE</th><th>VALUE</th></tr>'
+              b'<tr><td>1999-12-31</td><td>24.64</td></tr></table></html>')
+        with self.assertRaises(ValueError):
+            parse_fred_vixcls_table(html)
+        def opener(request,timeout):
+            if 'fredgraph.csv' in request.full_url:raise TimeoutError('timeout')
+            return Response(html)
+        with tempfile.TemporaryDirectory() as d:
+            original=self.cboe.to_csv(Path(d,'vix.csv'),index_label='date')
+            result,meta,audit=self.perform(d,opener=opener)
+            self.assertEqual(result['status'],'FRED_DOWNLOAD_OR_PARSE_FAILED')
+            self.assertEqual(len(pd.read_csv(Path(d,'vix.csv'))),2)
+            self.assertEqual(audit['recovered'],[])
 
     def test_full_report_marks_fred_row_and_stays_no_trade(self):
         with tempfile.TemporaryDirectory() as d:
