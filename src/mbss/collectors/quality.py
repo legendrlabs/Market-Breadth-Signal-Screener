@@ -65,8 +65,11 @@ def validate_dataset(name,frame,meta,sessions,expected_last):
     missing_columns=[c for c in required if c not in frame]
     if missing_columns: flags.append('MISSING_COLUMNS:'+','.join(missing_columns))
     expected=sessions[(sessions>=frame.index.min()) & (sessions<=frame.index.max())]
-    missing=len(expected.difference(frame.index))
+    missing_dates=expected.difference(frame.index)
+    missing=len(missing_dates)
     if missing: flags.append('MISSING_SESSIONS')
+    if name=='vix':
+        result['missing_xnys_dates']=[str(day.date()) for day in missing_dates]
     non_session_dates=frame.index.difference(sessions)
     if name=='vix':
         # Keep Cboe raw observations intact for auditing; use only XNYS sessions
