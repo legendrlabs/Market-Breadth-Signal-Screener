@@ -99,6 +99,10 @@ def audit_wsj_reference(input_dir, breadth, metadata, sessions, as_of):
             audit['flags'].append('INVALID_CAPTURE_TIMESTAMP')
         elif captured > asof_ts:
             audit['flags'].append('FUTURE_CAPTURE_TIMESTAMP')
+        elif captured < parsed_date.tz_localize('America/New_York') + pd.Timedelta(hours=20):
+            # WSJ overview diary may continue updating until 20:00 US/Eastern.
+            # This is a conservative timing gate, not proof of provider finality.
+            audit['flags'].append('CAPTURE_BEFORE_WSJ_FINAL_WINDOW')
         evidence = row.get('evidence_url')
         if not isinstance(evidence, str) or not evidence.startswith(('https://','http://')):
             audit['flags'].append('EVIDENCE_MISSING')
