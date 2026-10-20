@@ -208,4 +208,44 @@ def run_c_audit(input_csv,reference_csv,output_dir,source,as_of):
         writer=csv.DictWriter(handle,fieldnames=['date','status','eligible_for_signal'])
         writer.writeheader()
         writer.writerows(audit['primary_candidates'])
+    lines=[
+        '# MBSS Carson C — independent research-only date audit',
+        '',
+        '**'+audit['status']+' · SAFE_TO_ACT=False · UNVERIFIED_UNIVERSE**',
+        '',
+        'Source: '+audit['source_label'],
+        '',
+        'Input SHA256: '+audit['source_sha256'],
+        '',
+        'Carson published source: '+audit['published_reference'],
+        '',
+        'Reference coverage is based on 11 consecutive real observations; missing historical periods never count as negative signals.',
+        '',
+        '| Variant | Comparable printed dates | Matched | Extra | Missed |',
+        '|---|---:|---:|---:|---:|',
+    ]
+    for v in audit['variants']:
+        if v['status']!='RESEARCH_SENSITIVITY_ONLY':
+            lines.append('| '+v['variant']+' | — | — | — | — |')
+        else:
+            lines.append('| '+v['variant']+' | '+str(v['comparable_reference_dates'])+
+                         ' | '+str(len(v['matched']))+' | '+str(len(v['extras']))+
+                         ' | '+str(len(v['missed']))+' |')
+    lines+=['','## Original printed date coverage',
+             '| Date as published | Observability |','|---|---|']
+    for item in audit['reference_dates']:
+        lines.append('| '+item['date']+' | '+item['coverage']+' |')
+    lines+=['','## Unmatched current-rule research candidates']
+    primary=audit['variants'][0]
+    if primary['extras']:
+        lines += ['- '+d for d in primary['extras']]
+    else:
+        lines.append('No comparable extra dates in this input; absence is not proof of original rule reproduction.')
+    lines+=['','## Important limits',
+            '- 6-of-10 / >70% is published; exact denominator and suppression convention are not verified.',
+            '- 63-session cooldown and inclusive 70% are sensitivity tests, not inferred provider rules.',
+            '- This result is not used in daily A/C signals, backtests, or portfolio sizing.',
+            '- No 8/8 reproduction claim is permitted without continuous comparable source observations.',
+            '']
+    (out/'c_audit.md').write_text('\\n'.join(lines),encoding='utf-8')
     return audit
