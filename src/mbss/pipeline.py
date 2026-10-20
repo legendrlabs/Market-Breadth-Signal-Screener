@@ -67,6 +67,9 @@ def observations(frames,metadata,quality):
     for name,frame in frames.items():
         meta=metadata.get(name,{});q=quality.get(name,{})
         for date,row in frame.iterrows():
+            supplemental=(meta.get('supplemental_observations') or {}).get(str(date.date()),{}) if name=='vix' else {}
+            row_source=supplemental.get('source',meta.get('source'))
+            row_retrieved=supplemental.get('retrieval_timestamp',meta.get('retrieval_timestamp'))
             for field,val in row.items():
                 adjusted=val
                 if name in ('spy','qqq') and field in ('open','high','low','close'):
@@ -75,7 +78,7 @@ def observations(frames,metadata,quality):
                     numeric=pd.to_numeric(val,errors='coerce')
                     adjusted=numeric*adj/close if pd.notna(close) and close>0 else np.nan
                 rows.append({'dataset':name,'observation_date':str(date.date()),'field':field,
-                             'source':meta.get('source'),'retrieval_timestamp':meta.get('retrieval_timestamp'),
+                             'source':row_source,'retrieval_timestamp':row_retrieved,
                              'original_value':val,'adjusted_value':adjusted,'missing_count':q.get('missing_count'),
                              'freshness':q.get('freshness'),'validation_status':q.get('validation_status')})
     return pd.DataFrame(rows,columns=['dataset','observation_date','field','source','retrieval_timestamp','original_value','adjusted_value','missing_count','freshness','validation_status'])
@@ -193,6 +196,17 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
                       'breadth_diagnostics':recent_breadth}
         publisher_reconciliation=audit_publisher_page(input_dir,frames['breadth'],metadata.get('breadth',{}),sessions,as_of)
         wsj_reconciliation=audit_wsj_reference(input_dir,frames['breadth'],metadata.get('breadth',{}),sessions,as_of)
+        recovery_file=input_dir/'vix_recovery.json'
+        if recovery_file.exists():
+            try:
+                vix_recovery=json.loads(recovery_file.read_text())
+                if not isinstance(vix_recovery,dict):raise ValueError('invalid recovery object')
+            except (ValueError,OSError) as exc:
+                vix_recovery={'status':'INVALID_RECOVERY_AUDIT','error':type(exc).__name__+': '+str(exc)}
+        else:
+            vix_recovery={'status':'NOT_ATTEMPTED'}
+        data_quality['vix_recovery']=vix_recovery
+        quality['vix']['supplemental_observations']=metadata.get('vix',{}).get('supplemental_observations',{})
         context=external_context(input_dir,as_of)
         auxiliary=load_auxiliary(input_dir,sessions,as_of)
         data_quality["auxiliary_breadth"]=auxiliary
@@ -224,6 +238,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         dump(stage/'publisher_page_reconciliation.json',publisher_reconciliation)
         if (input_dir/'publisher_page_snapshot.json').exists():
             shutil.copyfile(input_dir/'publisher_page_snapshot.json',stage/'publisher_page_snapshot.json')
+        dump(stage/'vix_recovery.json',vix_recovery)
         dump(stage/'wsj_reconciliation.json',wsj_reconciliation)
         dump(stage/'external_context.json',context)
         dump(stage/'auxiliary_breadth.json',auxiliary)
