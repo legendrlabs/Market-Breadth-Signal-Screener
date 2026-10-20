@@ -247,5 +247,5 @@ def run_c_audit(input_csv,reference_csv,output_dir,source,as_of):
             '- This result is not used in daily A/C signals, backtests, or portfolio sizing.',
             '- No 8/8 reproduction claim is permitted without continuous comparable source observations.',
             '']
-    (out/'c_audit.md').write_text('\\n'.join(lines),encoding='utf-8')
+    (out/'c_audit.md').write_text('\n'.join(lines),encoding='utf-8')
     return audit
