@@ -34,7 +34,7 @@ class EpisodeTests(unittest.TestCase):
         self.assertEqual(c['preceding_carson_printed_date'],'2011-10-18')
         self.assertEqual(c['trading_sessions_since_preceding_printed_date'],
                          self.days.get_loc(self.case)-self.days.get_loc(self.prior))
-        self.assertIsNone(c['research_variants_signal_on_date']['UNCHANGED_DENOMINATOR_RESEARCH_COOLDOWN10'] if 'unchanged' not in self.main else None)
+        self.assertTrue(c['research_variants_signal_on_date']['UNCHANGED_DENOMINATOR_RESEARCH_COOLDOWN10'])
         self.assertFalse(c['safe_to_act'])
         self.assertFalse(r['eligible_for_signal'])
         self.assertEqual(r['carson_ndr_duplicate_suppression'],'UNVERIFIED')
