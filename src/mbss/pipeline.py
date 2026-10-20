@@ -16,6 +16,7 @@ from mbss.collectors.calendar import market_sessions,as_utc
 from mbss.collectors.sources import load_inputs,utc_now
 from mbss.collectors.quality import validate_dataset,reason_codes,breadth_diagnostics
 from mbss.collectors.context import external_context
+from mbss.collectors.wsj_audit import audit_wsj_reference
 from mbss.collectors.auxiliary import load_auxiliary
 from mbss.indicators.core import breadth_ratio,ema
 from mbss.signals.core import zbt_events,rally_events,expansion_events,election_events,all_combinations
@@ -189,6 +190,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         data_quality={'status':assessment['DATA_QUALITY'],'calendar':calendar,'datasets':quality,
                       'load_errors':load_errors,'synthetic':synthetic,'raw_observations_used_for_trading':False,
                       'breadth_diagnostics':recent_breadth}
+        wsj_reconciliation=audit_wsj_reference(input_dir,frames['breadth'],metadata.get('breadth',{}),sessions,as_of)
         context=external_context(input_dir,as_of)
         auxiliary=load_auxiliary(input_dir,sessions,as_of)
         data_quality["auxiliary_breadth"]=auxiliary
@@ -217,6 +219,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         pd.DataFrame([e.record() for e in events],columns=['signal','signal_date','components','definition']).to_csv(stage/'signals.csv',index=False)
         results.to_csv(stage/'backtest_results.csv',index=False)
         dump(stage/'signal_events.json',{'assessment':assessment,'events':[e.record() for e in events],'synthetic':synthetic})
+        dump(stage/'wsj_reconciliation.json',wsj_reconciliation)
         dump(stage/'external_context.json',context)
         dump(stage/'auxiliary_breadth.json',auxiliary)
         if (input_dir/'auxiliary_breadth.json').exists():
@@ -229,7 +232,7 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         observations(frames,metadata,quality).to_csv(stage/'observations.csv',index=False)
         if curves:pd.concat({k:v.equity for k,v in curves.items()},axis=1).to_csv(stage/'strategy_equity.csv',index_label='date')
         images=plots(usable,events,results,curves,cases,synthetic,display_start=start)
-        render(stage,assessment,data_quality,summary,claims,images,manifest,strategy_summary,synthetic,external_context=context)
+        render(stage,assessment,data_quality,summary,claims,images,manifest,strategy_summary,synthetic,external_context=context,wsj_reconciliation=wsj_reconciliation)
         manifest['output_sha256']={f.name:digest(f) for f in sorted(stage.glob('*')) if f.is_file()}
         dump(stage/'run_manifest.json',manifest)
         os.replace(stage,output)
