@@ -46,3 +46,16 @@ Dataset `reason_codes` and signal `DATA_HOLD_REASONS` separate SOURCE_UNAVAILABL
 `data_quality.json.breadth_diagnostics` is unverified, source-only recent NYSE observation arithmetic. It is excluded from signals and event/portfolio results. Gaps reset EMA warmup and the ten-session count. The McClellan adapter requires DATE/NYSE/NYSE followed by ADV./DEC. and excludes blank rows and audited note rows with no numeric issue counts; partial numeric observations remain for validation. It never reads calculated oscillator/volume columns as counts. Existing user-imported breadth and metadata are preserved; incompatible new downloads go to breadth_candidate.csv/breadth_candidate_metadata.json.
 
 Optional input `external_context.json` is a list of records with metric/value/universe/session_type/observed_at/retrieval_timestamp/source. It is copied into a separate output with eligibility always False. Missing exact observation time is OBSERVATION_TIME_UNKNOWN; future timestamps are flagged. No external value is merged into observed official metrics or the NYSE signal series. See breadth-live-research-2026-10-19.md for a schema example.
+
+
+## v0.1.3 auxiliary snapshot
+
+`auxiliary_breadth.json` is a collector-owned current snapshot, not an NYSE CSV. It records the issuer holdings date, original tickers/identifiers, supported Yahoo mappings, excluded records, original dated closes, download hashes, retrieval and completion times, errors and flags. Failure replaces the old collector snapshot with an explicit diagnosis. Raw downloads remain in the dated raw directory; no raw data is shipped in the release.
+
+At report time revalidate snapshot date and retrieval/completion against as-of and the completed exchange calendar. Require the same latest session for holdings and prices and 100% prior/current daily close coverage. Unknown/intraday granularity is rejected. Never use live/extended-market prices to fill a missing close or shorten the denominator. Advancing share all = advances / (advances+declines+unchanged); active share excludes unchanged. All-unchanged active share is null. Source closes are Yahoo split-adjusted price proxies, not dividend-adjusted total returns.
+
+The issuer file is SPY holdings, not certified index membership. Unsupported ticker records (including cash or unlisted claims) are separately audited rather than assigned returns. Current supported holdings count must fall in 450–550 to reject top-holdings tables; the range is a schema sanity check, not an index rule. No historical reconstruction, signal or backtest use is authorized. `eligible_for_signal` is always false. Auxiliary failure never changes whether an independently valid B or D is NO_SIGNAL.
+
+External context requires finite numeric values; null/missing gets MISSING_VALUE, nonfinite/boolean/non-numeric gets INVALID_VALUE and null. EXTERNAL_CONTEXT_LOAD_FAILED is visible in JSON, Markdown and HTML.
+
+The immutable report also preserves the exact normalized auxiliary input as auxiliary_snapshot.json and hashes it in run_manifest.json, including invalid inputs for diagnosis. The assessed auxiliary_breadth.json remains separate. Parser failures retain raw download paths/hashes in collection_attempts; bytes remain outside source releases.

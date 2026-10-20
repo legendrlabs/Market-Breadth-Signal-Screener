@@ -1,10 +1,10 @@
-# Market Breadth Signal Screener (MBSS) v0.1.2
+# Market Breadth Signal Screener (MBSS) v0.1.3
 
 미국 상승 참여도 신호를 **독립 검증**하는 Python 연구 도구입니다. 과거 100% 승률을 전제로 삼지 않습니다. 기존 Mechanical Top15, K-Mechanical, SSM 코드나 규칙을 가져오거나 변경하지 않습니다. 자동매매 기능은 없습니다.
 
 **연구 상태: 소스 구현·로컬 실자료 실행 완료. B/D 집계 수치와 A/C 일부 사건 날짜 대조. A/C 전체·복합 신호 실자료 검증 미완료. SAFE_TO_ACT=False.**
 
-개발·배포 저장소는 [legendrlabs/Market-Breadth-Signal-Screener](https://github.com/legendrlabs/Market-Breadth-Signal-Screener)입니다. v0.1.2은 검증 진행 중인 연구 프리릴리스입니다. 실제 게시 여부는 [Releases](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/releases), 실행·보고서는 [Actions](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/actions)에서 확인합니다.
+개발·배포 저장소는 [legendrlabs/Market-Breadth-Signal-Screener](https://github.com/legendrlabs/Market-Breadth-Signal-Screener)입니다. v0.1.3은 검증 진행 중인 연구 프리릴리스입니다. 실제 게시 여부는 [Releases](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/releases), 실행·보고서는 [Actions](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/actions)에서 확인합니다.
 
 ## 빠른 실행
 
@@ -15,7 +15,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
 python -m unittest discover -s tests -v
-mbss collect --input data/normalized --start 1999-01-01
+mbss collect --input data/normalized --start 1999-01-01 --aux-breadth
 mbss run --input data/normalized --start 2000-01-01
 ```
 
@@ -62,7 +62,7 @@ mbss run --start 1974-01-01 --cost-bps 5 --output runs/long-history-costs
 
 합성자료는 테스트에만 사용하며 보고서에 SYNTHETIC TEST ONLY를 표시합니다. 입력이 없을 때의 정상 보고, 잘못된 메타데이터, 누락·중복·무한값, 인과적 신호, 경계, 겹치는 보유기간, 비용과 배당 조정, 비교기간 정렬 등을 테스트합니다. 거래일 의존성을 설치하지 못한 환경에서는 조기 폐장 검증을 SKIP하고 그 사실을 보고합니다.
 
-최초 엔진 검수는 Python 47개 통과이며 등록 단계의 배포 검사를 포함한 최종 로컬 검수는 Python 68개와 Node 6개 전체 통과입니다. 의존성 설치 후에는 휴장일·조기 폐장 검사도 생략하지 않았습니다. 같은 실행 환경을 복원하려면 `requirements.lock.txt`를 사용합니다. 잠금 파일은 이 실행의 Python 3.12 환경 스냅샷입니다.
+최초 엔진 검수는 Python 47개 통과이며 등록 단계의 배포 검사를 포함한 최종 로컬 검수는 Python 85개와 Node 6개 전체 통과입니다. 의존성 설치 후에는 휴장일·조기 폐장 검사도 생략하지 않았습니다. 같은 실행 환경을 복원하려면 `requirements.lock.txt`를 사용합니다. 잠금 파일은 이 실행의 Python 3.12 환경 스냅샷입니다.
 
 GitHub 워크플로는 `.github/workflows/ci.yml`, `daily.yml`에 있습니다. 일일 작업은 미국 거래일 저녁 이후 UTC 23:17 / 다음 날 KST 08:17에 시도하며 휴장일에는 직전 완료 거래일을 사용합니다. 개인/조직의 Actions 무료 사용량 한도는 별도이며 무제한 무료 실행을 보장하지 않습니다. 공급원 자료와 보고서를 코드 릴리스에 자동 커밋하지 않습니다.
 
@@ -82,3 +82,16 @@ v0.1.0의 첫 GitHub 보고서에서 publication 필드가 로컬 개발 당시�
 - 장중 보도·S&P500 보조 참고값은 입력 폴더의 선택적 `external_context.json`에 보관하고 같은 이름의 출력으로 분리합니다. 출처·모집단·관측/수집시각·장중 여부를 표시하며 A/C 입력으로 사용하지 않습니다. S&P500 일별 자동 Breadth 시계열 수집은 아직 구현하지 않았습니다.
 
 추가 자료와 한계는 [v0.1.2 연구](docs/breadth-live-research-2026-10-19.md)를 참조합니다.
+
+
+## v0.1.3 보조 Breadth와 외부 자료 오류
+
+`collect --aux-breadth`는 State Street 공식 SPY 보유종목 XLSX에서 기준일·거래 가능한 티커를 읽고, 같은 기준일의 Yahoo 일봉 종가를 최대 20종목씩 요청합니다. 일일 Actions도 이 옵션을 사용합니다. **공식 S&P500 구성종목 Breadth가 아니라 SPY 보유종목 기반 대용 참고값**입니다. 지원하지 않는 티커·현금 등 제외 원본 행을 숨기지 않습니다.
+
+최신 완료 거래일과 보유종목 기준일이 다르거나, 전 거래일/당일 가격이 하나라도 누락되거나, 일봉 응답이 확인되지 않으면 비율은 null입니다. 450~550개는 잘린 상위 보유목록 방지를 위한 점검 범위이며 S&P500 공식 구성 인증이 아닙니다. 상승/(상승+하락+보합), 상승/(상승+하락)을 구분합니다. 현재 구성으로 과거 시계열을 소급 생성하지 않습니다.
+
+별도 입력·출력 `auxiliary_breadth.json` 및 `data_quality.json.auxiliary_breadth`에서 기준일·범위·제외 행·분모·가격 커버리지·보류 사유를 확인합니다. A/C 신호·백테스트·SAFE_TO_ACT에 연결하지 않습니다. 외부 JSON 파싱 실패는 Markdown/HTML에도 표시하며, 외부 수치의 누락·NaN·불리언 값은 명시적으로 차단합니다.
+
+NYSE 장기 무료 원천·정의 비교는 아직 미완료입니다. 실제 접근 시도와 보조 지표 한계는 [2026-10-20 검증 기록](docs/breadth-remaining-work-2026-10-20.md)을 참조합니다.
+
+후속 아카이브 조사에서 McClellan 보관본 43개를 복원해 2,086거래일을 부분 확보했습니다. Unicorn과 겹치는 1,605일 중 상승·하락 수가 모두 같은 날은 455일(28.35%)로, 공급원 간 단순 접합은 승인하지 않습니다. 장기 연속 검증 완료를 뜻하지 않습니다.

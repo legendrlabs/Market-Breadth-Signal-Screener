@@ -16,6 +16,7 @@ from mbss.collectors.calendar import market_sessions,as_utc
 from mbss.collectors.sources import load_inputs,utc_now
 from mbss.collectors.quality import validate_dataset,reason_codes,breadth_diagnostics
 from mbss.collectors.context import external_context
+from mbss.collectors.auxiliary import load_auxiliary
 from mbss.indicators.core import breadth_ratio,ema
 from mbss.signals.core import zbt_events,rally_events,expansion_events,election_events,all_combinations
 from mbss.backtest.events import event_study
@@ -185,8 +186,10 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
                       'load_errors':load_errors,'synthetic':synthetic,'raw_observations_used_for_trading':False,
                       'breadth_diagnostics':breadth_diagnostics(frames['breadth'],sessions,expected_last)}
         context=external_context(input_dir,as_of)
+        auxiliary=load_auxiliary(input_dir,sessions,as_of)
+        data_quality["auxiliary_breadth"]=auxiliary
         versions={}
-        for package in ('pandas','numpy','matplotlib','exchange-calendars'):
+        for package in ('pandas','numpy','matplotlib','exchange-calendars','xlrd','openpyxl'):
             try:versions[package]=version(package)
             except PackageNotFoundError:versions[package]='NOT_INSTALLED'
         try:commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=Path(__file__).resolve().parents[2],stderr=subprocess.DEVNULL,text=True).strip()
@@ -211,6 +214,9 @@ def run(input_dir,output_dir,as_of=None,start='2000-01-01',seed=42,cost_bps=0,
         results.to_csv(stage/'backtest_results.csv',index=False)
         dump(stage/'signal_events.json',{'assessment':assessment,'events':[e.record() for e in events],'synthetic':synthetic})
         dump(stage/'external_context.json',context)
+        dump(stage/'auxiliary_breadth.json',auxiliary)
+        if (input_dir/'auxiliary_breadth.json').exists():
+            shutil.copyfile(input_dir/'auxiliary_breadth.json',stage/'auxiliary_snapshot.json')
         dump(stage/'data_quality.json',data_quality);dump(stage/'summary.json',summary);dump(stage/'claim_audit.json',claims)
         dump(stage/'random_baselines.json',baselines);dump(stage/'strategy_summary.json',strategy_summary)
         dump(stage/'strategy_trades.json',trades)
