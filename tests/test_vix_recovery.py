@@ -133,7 +133,7 @@ class VixObservedRecoveryTests(unittest.TestCase):
                              Path(d,'vix.csv'),index_label='date')
             r,m,s=self.perform(d,sessions=sessions)
             self.assertEqual(s['status'],'FRED_OBSERVATIONS_INCOMPLETE')
-            self.assertEqual(s['unresolved_xnys_dates'],['2000-01-03'])
+            self.assertEqual(s['unresolved_xnys_dates'],['1999-12-31','2000-01-03'])
 
 
     def test_fred_published_html_table_is_fallback_when_csv_times_out(self):
