@@ -7,6 +7,7 @@ unreviewed replacement of an existing Cboe observation is permitted.
 from datetime import datetime, timezone
 from hashlib import sha256
 from io import BytesIO
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -22,6 +23,7 @@ from mbss.collectors.calendar import market_sessions
 
 CBOE_URL = 'https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv'
 FRED_GRAPH_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv'
+FRED_TABLE_URL = 'https://fred.stlouisfed.org/data/VIXCLS'
 FRED_SERIES_URL = 'https://fred.stlouisfed.org/series/VIXCLS'
 
 
@@ -40,6 +42,50 @@ def parse_fred_vixcls(body):
         raise ValueError('invalid FRED observation date shape')
     dates = pd.to_datetime(frame[date_column], format='%Y-%m-%d', errors='raise')
     return pd.Series(frame['VIXCLS'].tolist(), index=pd.DatetimeIndex(dates), name='VIXCLS').sort_index()
+
+
+
+class _FREDVisibleHTML(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.visible = []
+        self.hidden = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ('script','style','noscript'):
+            self.hidden += 1
+
+    def handle_endtag(self, tag):
+        if tag in ('script','style','noscript') and self.hidden:
+            self.hidden -= 1
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.visible.append(data)
+
+
+def parse_fred_vixcls_table(body):
+    """Fallback parser for FRED's server-rendered public VIXCLS data table."""
+    if not isinstance(body, bytes) or not body:
+        raise ValueError('empty FRED table response')
+    parser = _FREDVisibleHTML()
+    parser.feed(body.decode('utf-8', errors='replace'))
+    text = ' '.join(parser.visible)
+    if (not re.search(r'\bSeries\s+ID\s+VIXCLS\b', text, re.I)
+            or not re.search(r'\bCBOE Volatility Index\b', text, re.I)
+            or not re.search(r'\bChicago Board Options Exchange\b', text, re.I)
+            or not re.search(r'\bDATE\s+VALUE\b', text, re.I)):
+        raise ValueError('FRED VIXCLS issuer, series, or data-table header not verified')
+    text = re.split(r'\bDATE\s+VALUE\b', text, maxsplit=1, flags=re.I)[-1]
+    rows = re.findall(r'(?<!\d)(\d{4}-\d{2}-\d{2})\s*(?:\|\s*)?(\d+(?:\.\d+)?|\.)(?=\s|$)',text)
+    if not rows:
+        raise ValueError('FRED table has no dated close observations')
+    dates = [date for date,value in rows]
+    if len(set(dates)) != len(dates):
+        raise ValueError('duplicate FRED table observation date')
+    index = pd.to_datetime(dates, format='%Y-%m-%d',errors='raise')
+    return pd.Series([value for date,value in rows],
+                     index=pd.DatetimeIndex(index),name='VIXCLS').sort_index()
 
 
 def _positive_real(raw):
@@ -133,19 +179,43 @@ def recover_missing_vix(directory, raw_directory, metadata, start='2000-01-01',
                         'coed': gaps.max().strftime('%Y-%m-%d')})
     url = FRED_GRAPH_URL + '?' + params
     snapshot['download_url'] = url
-    try:
-        request = Request(url, headers={'User-Agent': 'MBSS/0.1.3 observational VIX research'})
-        with (opener or urlopen)(request, timeout=timeout) as response:
-            body = response.read(5_000_000)
-        raw_directory.mkdir(parents=True, exist_ok=True)
-        raw_file = raw_directory / 'fred_vixcls.csv'
-        raw_file.write_bytes(body)
-        snapshot['raw_file'] = str(raw_file)
-        snapshot['raw_sha256'] = sha256(body).hexdigest()
-        observations = parse_fred_vixcls(body)
-    except Exception as exc:
+    snapshot['download_attempts'] = []
+    observations = None
+    any_parsed = False
+    raw_directory.mkdir(parents=True, exist_ok=True)
+    for source_url, parser, filename in (
+        (url, parse_fred_vixcls, 'fred_vixcls.csv'),
+        (FRED_TABLE_URL, parse_fred_vixcls_table, 'fred_vixcls_table.html'),
+    ):
+        source_attempt = {'url': source_url, 'status': 'PENDING', 'raw_sha256': None}
+        snapshot['download_attempts'].append(source_attempt)
+        try:
+            request = Request(source_url, headers={'User-Agent':'MBSS/0.1.3 observational VIX research'})
+            with (opener or urlopen)(request, timeout=timeout) as response:
+                body = response.read(5_000_000)
+            raw_file = raw_directory / filename
+            raw_file.write_bytes(body)
+            digest = sha256(body).hexdigest()
+            source_attempt.update(raw_file=str(raw_file),raw_sha256=digest)
+            candidate = parser(body)
+            any_parsed = True
+            if any(day not in candidate.index or _positive_real(candidate.loc[day]) is None for day in gaps):
+                source_attempt.update(status='OBSERVED_DATES_INCOMPLETE')
+                continue
+            observations = candidate
+            source_attempt['status'] = 'OBSERVATIONS_COMPLETE'
+            snapshot['download_url'] = source_url
+            snapshot['raw_file'] = str(raw_file)
+            snapshot['raw_sha256'] = digest
+            break
+        except Exception as exc:
+            source_attempt.update(status='FETCH_OR_PARSE_FAILED',
+                                  error=type(exc).__name__+': '+str(exc))
+    if observations is None:
         snapshot['unresolved_xnys_dates'] = snapshot['identified_missing_xnys_dates']
-        return finish('FRED_DOWNLOAD_OR_PARSE_FAILED', type(exc).__name__ + ': ' + str(exc))
+        errors = [a.get('error',a['status']) for a in snapshot['download_attempts']]
+        return finish('FRED_OBSERVATIONS_INCOMPLETE' if any_parsed else 'FRED_DOWNLOAD_OR_PARSE_FAILED',
+                      '; '.join(errors))
 
     recovered = []
     unresolved = []

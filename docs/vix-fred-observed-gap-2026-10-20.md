@@ -26,3 +26,17 @@
 - 실제 GitHub Actions에서 FRED Graph CSV에 키 없이 접근되는지, 1999-12-31 날짜값 `24.64`가 **실제 다운로드 결과**인지 확인한다. 원문 인터넷 열람의 값만으로 실행 성공을 주장하지 않는다.
 - API가 403·5xx이거나 다운로드에 관측값이 없으면 `FRED_DOWNLOAD_OR_PARSE_FAILED` / `FRED_OBSERVATIONS_INCOMPLETE`를 유지하고 VIX는 DATA_HOLD를 지속한다.
 - NYSE A/C 모집단 및 Carson/NDR 중복 제거 정의는 별도 과제. FRED 보완은 독립적으로 그 문제를 해결하지 않는다.
+
+## 2026-10-20 첫 실전 실행과 공식 FRED 대체 주소
+
+병합 후 GitHub Actions `39372735233`에서 Cboe VIX 다운로드는 성공했지만,
+`https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS&cosd=1999-12-31&coed=1999-12-31`가 `TimeoutError: The read operation timed out`로 실패했다. 원 Cboe CSV·metadata의 해당 세션은 수정하지 않았고, 실전 보고서 VIX는 `MISSING_SESSIONS` / `DATA_HOLD`로 남았다.
+
+따라서 FRED가 공개하는 동일 시리즈의 **서버 렌더링 표**
+`https://fred.stlouisfed.org/data/VIXCLS`를 대체 경로로 추가한다.
+첫 Graph CSV 요청이 실패·누락되면 게시 표를 내려받아 `Series ID VIXCLS`,
+`Chicago Board Options Exchange`, `DATE VALUE` 레이블을 확인하고,
+그 안의 실제 날짜별 관측을 추출한다. 페이지 HTML의 임의 기사·스크립트·
+다른 시리즈 수치를 사용하지 않는다. 양쪽 소스 모두 실패하면 원자료를 유지한다.
+
+동일 FRED 발행사의 **다른 표현 방식**을 재시도하는 것이므로 공급원 독립 검증은 여전히 성립하지 않는다. 실제 라이브 수집 성공은 새 브랜치의 테스트 통과만으로 주장하지 않고 별도 일일 실행의 감사 JSON으로 확인한다.
