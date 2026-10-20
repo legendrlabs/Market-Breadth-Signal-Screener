@@ -134,3 +134,11 @@ WSJ 일별 NYSE 상승·하락 수는 공개 HTML 열람에서 동적 로딩만 
 - 연구용 감사 값은 기존 `mbss run`, A/C 이벤트 및 백테스트, 주문에 **절대 연결하지 않는다**. `SAFE_TO_ACT=False` 유지.
 
 [원문 근거·비교 가능성·미해결 사건 정의 정리](docs/nyse-universe-carson-c-audit-2026-10-20.md).
+
+## 2026-10-20 C 추가 후보 세 건 집중 조사 (P1)
+
+장기 무료 NYSE 데이터의 전체 재현을 기다리는 대신 1982-10-18·2009-09-15·2011-11-03의 **추가 C 후보가 실제로 왜 탐지됐는지**를 별도 사례 연구로 다룹니다. `mbss audit-c-episodes --input-csv <dated-A-D.csv> --source <original-provider> --output <new-dir>`는 실제로 확보한 상승·하락·보합 관측값만 사용하여 후보일별 6/10 조건, 직전 Carson 인쇄일과 거래일 간격, 63거래일 전후의 시계열, 다른 공급원과 동일날짜 비교를 JSON·CSV·Markdown으로 남깁니다. 인쇄표에 없는 후보를 삭제하거나 가상의 cooldown으로 공식 C 정의를 교체하지 않습니다.
+
+[연구 절차·원자료 확보 조건](docs/c-three-episode-fieldwork-2026-10-20.md) · [P1 사건 검증 #13](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/issues/13) · [P2 장기 원자료 #14](https://github.com/legendrlabs/Market-Breadth-Signal-Screener/issues/14)
+
+**현 단계는 감사 기능·작업분리 구축이며 세 사건의 새 실측값 확보가 아님.** A/C `DATA_HOLD` · `SAFE_TO_ACT=False` 유지.
