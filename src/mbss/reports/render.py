@@ -75,7 +75,7 @@ def md_table(headers,rows):
     return '\n'.join(['| '+' | '.join(headers)+' |','|'+'|'.join(['---']*len(headers))+'|']+['| '+' | '.join(cell(x) for x in row)+' |' for row in rows])
 
 
-def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False,external_context=None):
+def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False,external_context=None,wsj_reconciliation=None):
     def pct(v):return f'{v*100:+.2f}%' if v is not None and np.isfinite(v) else '—'
     title='MBSS v0.1.3 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
     status=assessment['SIGNAL_STATUS'];last=assessment['as_of_session'] or 'unknown'
@@ -98,6 +98,17 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
             'Source-only NYSE observations, not Carson/NDR-validated A/C signals. As-of versus last observed NYSE session, consecutive valid sessions, and 100-session EMA warmup are reported separately. Missing sessions reset the EMA and ten-session window. SAFE_TO_ACT remains False.',
             '',md_table(['Metric','Value'],list(diagnostics.items()))]
+    wsj=wsj_reconciliation or {'status':'NO_WSJ_REFERENCE','rows':[]}
+    lines+=['','## WSJ vs McClellan NYSE count audit — SOURCE_REFERENCE_ONLY','',
+            'Explicitly supplied dated WSJ FINAL snapshots are compared with raw McClellan counts only. No WSJ page scraping, no authentication of user-supplied finality, no NDR comparability, no A/C backtest inputs, and no trading eligibility.',
+            '',md_table(['Status','Final rows','Compared','Exact matches','Mismatches','Errors'],
+              [[wsj.get('status'),wsj.get('final_reference_rows',0),wsj.get('compared_rows',0),
+                wsj.get('exact_matches',0),wsj.get('mismatches',0),', '.join(wsj.get('errors',[]))]]),
+            '',md_table(['Date','Declared stage','Status','WSJ A','WSJ D','McClellan A','McClellan D','Delta A','Delta D','Flags'],
+               [[r.get('date'),r.get('reported_stage'),r.get('status'),r.get('wsj_advances'),r.get('wsj_declines'),
+                 r.get('mcclellan_advances'),r.get('mcclellan_declines'),r.get('difference_advances'),
+                 r.get('difference_declines'),', '.join(r.get('flags',[]))] for r in wsj.get('rows',[])])
+               if wsj.get('rows') else 'No source-captured WSJ reference supplied. Comparable observations unavailable.']
     aux=quality.get('auxiliary_breadth',{})
     lines+=['','## SPY holdings breadth proxy — auxiliary only','',
             'Not official S&P500 breadth or NYSE A/D. Only same-session holdings and complete prior/current daily closes qualify. Advancing share all includes unchanged holdings; active denominator excludes unchanged. No historical constituent backfill, ZBT substitution, or allocation use.',

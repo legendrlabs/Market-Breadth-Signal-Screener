@@ -102,3 +102,11 @@ NYSE 장기 무료 원천·정의 비교는 아직 미완료입니다. 실제 �
 - Cboe VIX에서 NYSE 달력 외 날짜는 원자료에 보존하고 `excluded_non_xnys_dates`로 감사하지만, 정상 NYSE 거래일 누락은 `missing_xnys_dates`와 `MISSING_SESSIONS`로 계속 차단합니다. FRED 값으로 자동 대체하지 않습니다.
 - 공개 VIX CSV의 동일 OHLC 첫 506행은 1990-01-02~1991-12-31이며 1992-01-02부터 OHLC가 분리됩니다. 2004-06-11까지 506행이라는 외부 조사문 설명은 정정했습니다.
 - 원전 확인 수준, Carson/NDR C 신호 중복 미해결, WSJ 최종값 대조 미구현과 후속 과제: [2026-10-20 후속 검증](docs/verification-followup-2026-10-20.md). `SAFE_TO_ACT=False`, `OBSERVE_ONLY` 유지.
+
+## 2026-10-20 WSJ/McClellan 확정치 감사 모듈 (v0.1.3 유지)
+
+WSJ 일별 NYSE 상승·하락 수는 공개 HTML 열람에서 동적 로딩만 확인되어 **실측 일치 검증은 아직 0건(자료 미확보)**입니다. 출처와 일자·캡처시각이 분명한 `wsj_reference.json`을 수동 입력할 수 있으며, 정규 NYSE 세션·미래일·잠정치·중복일·원천 확인 여부를 감사하여 McClellan XLS 원관측과 날짜별 차이를 `wsj_reconciliation.json` 및 Markdown/HTML 보고서에 표시합니다.
+
+증거가 없으면 `NO_WSJ_REFERENCE`로 표시하고 수치를 만들지 않습니다. 일치하더라도 `COUNTS_MATCH_REFERENCE_ONLY`이며 원전/NDR 비교 인증이 아닙니다. **A/C 신호·백테스트·자금배분·SAFE_TO_ACT에 연결하지 않습니다.**
+
+자세한 스키마와 원문 근거: [WSJ/McClellan 대조 및 미완료 과제](docs/wsj-mcclellan-reconciliation-2026-10-20.md).
