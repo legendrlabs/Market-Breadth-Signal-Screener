@@ -77,7 +77,7 @@ def md_table(headers,rows):
 
 def render(output,assessment,quality,summary,claims,images,manifest,strategy_summary,synthetic=False,external_context=None):
     def pct(v):return f'{v*100:+.2f}%' if v is not None and np.isfinite(v) else '—'
-    title='MBSS v0.1.2 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
+    title='MBSS v0.1.3 — '+('SYNTHETIC TEST ONLY' if synthetic else 'Independent research report')
     status=assessment['SIGNAL_STATUS'];last=assessment['as_of_session'] or 'unknown'
     lines=[f'# {title}',f"As of UTC: {manifest['as_of_utc']} / completed NYSE session: {last}",
            f"**{status} · SAFE_TO_ACT=False · OBSERVE_ONLY**",'',
@@ -98,9 +98,14 @@ def render(output,assessment,quality,summary,claims,images,manifest,strategy_sum
     lines+=['','## NYSE recent observations — UNVERIFIED_REFERENCE_ONLY','',
             'These raw-source diagnostics are excluded from signal detection and backtest samples; source universe/NDR comparison remains unverified. Missing sessions reset the EMA and ten-session window.',
             '',md_table(['Metric','Value'],list(diagnostics.items()))]
+    aux=quality.get('auxiliary_breadth',{})
+    lines+=['','## SPY holdings breadth proxy — auxiliary only','',
+            'Not official S&P500 breadth or NYSE A/D. Only same-session holdings and complete prior/current daily closes qualify. Advancing share all includes unchanged holdings; active denominator excludes unchanged. No historical constituent backfill, ZBT substitution, or allocation use.',
+            '',md_table(['Metric','Value'],[(k,v) for k,v in aux.items() if k not in ['excluded_holdings']]),
+            '', 'Excluded holding records: '+json.dumps(aux.get('excluded_holdings',[]),ensure_ascii=False)]
     context=external_context or {'observations':[]}
     lines+=['','## External intraday references — excluded from MBSS signals','',
-            md_table(['Metric','Value','Universe','Session','Observed at','Retrieved at','Source','Status','Flags'],[[r.get('metric'),r.get('value'),r.get('universe'),r.get('session_type'),r.get('observed_at'),r.get('retrieval_timestamp'),r.get('source'),r.get('status'),', '.join(r.get('flags',[]))] for r in context['observations']]) if context['observations'] else 'No external reference supplied.']
+            md_table(['Metric','Value','Universe','Session','Observed at','Retrieved at','Source','Status','Flags'],[[r.get('metric'),r.get('value'),r.get('universe'),r.get('session_type'),r.get('observed_at'),r.get('retrieval_timestamp'),r.get('source'),r.get('status'),', '.join(r.get('flags',[]))] for r in context['observations']]) if context['observations'] else 'External reference load failed: '+'; '.join(context['errors']) if context.get('errors') else 'No external reference supplied.']
     lines += ['', '## SPY buy-and-hold comparison','']
     if strategy_summary:
         lines.append(md_table(['Strategy','Cumulative return','CAGR','Volatility','Sharpe rf=0','Max drawdown','Exposure','Opportunity cost vs B&H'],[[s['strategy'],pct(s.get('cumulative_return')),pct(s.get('cagr')),pct(s.get('annualized_volatility')),f"{s['sharpe_rf_zero']:.3f}" if s.get('sharpe_rf_zero') is not None else '—',pct(s.get('max_drawdown')),pct(s.get('exposure')),pct(s.get('opportunity_cost_vs_buy_hold'))] for s in strategy_summary]))

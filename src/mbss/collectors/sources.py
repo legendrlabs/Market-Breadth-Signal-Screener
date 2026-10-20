@@ -67,7 +67,7 @@ def parse_mcclellan(body):
     return parse_mcclellan_rows([sheet.row_values(i) for i in range(sheet.nrows)],book.datemode)
 
 
-def collect(destination,start='2000-01-01',timeout=8):
+def collect(destination,start='2000-01-01',timeout=8,aux_breadth=False):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=True)
     raw=destination.parent/'raw'/datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ');raw.mkdir(parents=True)
     jobs=[('spx','^GSPC'),('spy','SPY'),('qqq','QQQ')]
@@ -86,7 +86,7 @@ def collect(destination,start='2000-01-01',timeout=8):
         name,url,parser=job;begin=time.monotonic();stamp=utc_now()
         attempt={'dataset':name,'source':url,'retrieval_timestamp':stamp}
         try:
-            request=Request(url,headers={'User-Agent':'MBSS/0.1.2 (independent public-data research)'})
+            request=Request(url,headers={'User-Agent':'MBSS/0.1.3 (independent public-data research)'})
             with urlopen(request,timeout=timeout) as response:body=response.read(30_000_000)
             raw_path=raw/(name+('.xls' if name=='breadth' else '.csv' if name=='vix' else '.json'));raw_path.write_bytes(body)
             frame=parser(body)
@@ -127,6 +127,9 @@ def collect(destination,start='2000-01-01',timeout=8):
                     continue
             frame.to_csv(destination/(name+'.csv'),index_label='date')
             metadata[name]=new_meta
+    if aux_breadth:
+        from mbss.collectors.auxiliary import collect_auxiliary
+        attempts.extend(collect_auxiliary(destination,raw,timeout))
     meta_path.write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
     (destination/'collection_attempts.json').write_text(json.dumps(attempts,ensure_ascii=False,indent=2))
     return attempts

@@ -67,3 +67,14 @@ Live acquisition obtained NYSE actual issue counts; the first attempt also expos
 Final v0.1.2 review: no Critical findings, two Important findings reproduced. Final: fixed existing imported/reviewed breadth overwrite — test_collection_preserves_imported_breadth_and_stages_candidate RED→GREEN. Final: fixed XLS footer note counted as an observation — test_xls_note_row_is_not_an_observation_but_partial_numeric_row_is RED→GREEN. Full suite 68/68 Python and 6/6 Node green. Only collector-managed unreviewed files at the same source can be refreshed in place; other existing inputs are preserved and new data staged separately. No incompatible historical splicing.
 
 Final: minor (deferred): malformed external-context JSON is diagnosed in JSON but the rendered empty-reference wording omits that parsing error. Final: minor (deferred): an external record missing value does not receive an explicit missing-value flag. Both remain permanently excluded from all signal calculations; improve these auxiliary input messages later. No second review requested after the single regression fix pass.
+
+
+## v0.1.3 auxiliary and external references
+
+Ruling: current SPY traded-holdings breadth is explicitly a proxy; it cannot certify official S&P500 membership or replace NYSE A/C. Require same latest session for holdings, complete dated prior/current daily closes, and explicit daily granularity. No historical constituent backfill. Collection failures replace the auxiliary snapshot with a diagnosis; input/output provenance and unsupported holding records are retained. Wrong interpretation could imply official breadth or shrink the denominator, so ratios stay null on any coverage/date failure.
+
+Initial ten new regressions failed before implementation. Additional daily-granularity/future-completion tests failed before hardening. Actual issuer acquisition exposed a non-midnight calendar-start error, reproduced and fixed. Full pre-review Python 82/82 and Node 6/6 passed.
+
+Independent review: no Critical; Important: auxiliary constituents/prices/provenance omitted from retained artifacts. Minor: parser rejection lost raw-file hash metadata. Minor: oversized external integer caused OverflowError. Three regressions failed, then fixes preserve the normalized same-run snapshot and manifest hash, failed-parser download metadata, and invalid-value diagnosis. No signal formula, backtest outcome convention, historical validation approval or SAFE_TO_ACT gate was changed. Final counts recorded after the regression pass.
+
+Final v0.1.3 regression pass: Python 85/85 and Node 6/6 pass. The three review findings are fixed with RED→GREEN coverage. No second review was requested. Additional archive research restored 43 XLS vintages, 2,086 unique dates, 1,605 Unicorn-overlap dates and only 455 exact A/D pair matches; source splicing remains unapproved.

@@ -26,7 +26,7 @@ jobs:
       - name: Attempt public-source downloads
         id: collect
         continue-on-error: true
-        run: mbss collect --input data/normalized --start 1999-01-01 --timeout 10
+        run: mbss collect --input data/normalized --start 1999-01-01 --timeout 10 --aux-breadth
       - name: Generate same-run report, including DATA_HOLD
         run: mbss run --input data/normalized --output runs/daily
       - name: Report data status

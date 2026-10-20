@@ -1,4 +1,4 @@
-# Exact Python 3.12 environment used for the 2026-10-19 verification.
+# Python 3.12 research environment pins; auxiliary XLSX parser added 2026-10-20.
 contourpy==1.3.3
 cycler==0.12.1
 exchange_calendars==4.13.2
@@ -18,3 +18,5 @@ six==1.17.0
 toolz==1.2.0
 tzdata==2026.5
 xlrd==2.0.1
+openpyxl==3.1.5
+et_xmlfile==2.0.0

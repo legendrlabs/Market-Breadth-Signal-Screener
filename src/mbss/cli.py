@@ -7,10 +7,11 @@ from mbss.pipeline import run
 
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description='MBSS v0.1.2 independent signal research; no automated trading')
+    parser=argparse.ArgumentParser(description='MBSS v0.1.3 independent signal research; no automated trading')
     sub=parser.add_subparsers(dest='command',required=True)
     c=sub.add_parser('collect',help='Attempt keyless public price/VIX downloads; never infer NYSE breadth')
     c.add_argument('--input',default='data/normalized');c.add_argument('--start',default='1999-01-01');c.add_argument('--timeout',type=float,default=8)
+    c.add_argument('--aux-breadth',action='store_true',help='Collect current SPY traded-holdings breadth proxy; separate from NYSE signals')
     r=sub.add_parser('run',help='Validate local inputs and generate an immutable research report')
     r.add_argument('--input',default='data/normalized');r.add_argument('--output')
     r.add_argument('--as-of',default=None,help='UTC timestamp with timezone; default now')
@@ -19,7 +20,7 @@ def main(argv=None):
     args=parser.parse_args(argv)
     if args.command=='collect':
         if args.timeout<=0:parser.error('--timeout must be positive')
-        attempts=collect(args.input,args.start,args.timeout)
+        attempts=collect(args.input,args.start,args.timeout,aux_breadth=args.aux_breadth)
         print(json.dumps(attempts,ensure_ascii=False,indent=2))
         # Acquisition failure is operationally visible; report generation should still run.
         return 0 if all(a['status']!='FAILED' for a in attempts) else 2

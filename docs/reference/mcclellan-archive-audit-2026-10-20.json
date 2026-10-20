@@ -1,0 +1,32 @@
+{
+  "status": "UNVERIFIED",
+  "SAFE_TO_ACT": false,
+  "indexed_captures": 43,
+  "attempted_captures": 43,
+  "parsed_captures": 43,
+  "original_observations": 5057,
+  "unique_observation_dates": 2086,
+  "start": "2009-09-30",
+  "end": "2026-10-19",
+  "revised_dates_between_archive_vintages": 2,
+  "invalid_count_dates": 0,
+  "non_session_dates": 0,
+  "uncovered_sessions_inside_union_range": 2203,
+  "unicorn_overlap_dates": 1605,
+  "both_counts_match_dates": 455,
+  "both_counts_match_fraction": 0.2834890965732087,
+  "overlap_start": "2009-09-30",
+  "overlap_end": "2017-09-20",
+  "calendar": {
+    "valid": true,
+    "source": "exchange_calendars XNYS",
+    "package_version": "4.13.2",
+    "definition": "Completed official-schedule session closes, including early closes",
+    "official_reference": "https://www.nyse.com/trade/hours-calendars",
+    "requested_calendar_start": "2009-09-30",
+    "effective_calendar_start": "2009-09-30",
+    "coverage_note": "Before 1970 historical holiday rules not validated; earlier years excluded explicitly",
+    "expected_last": "2026-10-19"
+  },
+  "note": "Latest archive capture is a research selection, not certified point-in-time data. No source splicing or signal approval."
+}
