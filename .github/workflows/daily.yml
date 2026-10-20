@@ -2,7 +2,7 @@ name: MBSS daily research
 on:
   push:
     branches: [main]
-    paths: [pyproject.toml, 'src/mbss/collectors/mcclellan_page.py']
+    paths: [pyproject.toml, 'src/mbss/collectors/mcclellan_page.py', 'src/mbss/collectors/vix_recovery.py']
   workflow_dispatch:
   schedule:
     - cron: '17 23 * * 1-5'
