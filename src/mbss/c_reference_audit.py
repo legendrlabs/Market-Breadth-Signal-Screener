@@ -121,7 +121,7 @@ def reconcile_c(frame,sessions,reference_dates,source_label,source_sha256,
             flag='OUTSIDE_VALIDATED_CALENDAR_OR_DATA'
         elif date>idx[-1]:
             flag='AFTER_DATA_WINDOW'
-        elif not complete11.loc[date] if date in idx else True:
+        elif date not in idx or not bool(complete11.loc[date]):
             flag='INCOMPLETE_11_SESSION_CONTEXT'
         else:
             flag='OBSERVABLE_DATE'
