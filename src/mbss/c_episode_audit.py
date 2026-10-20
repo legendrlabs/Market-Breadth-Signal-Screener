@@ -81,7 +81,9 @@ def diagnose_episodes(frame, sessions, reference_dates, source, sha, compare=Non
         observed=int(ratio.loc[indices].notna().sum()) if len(indices) else 0
         complete=bool(eleven.loc[date]) if in_cal else False
         valid_candidate=bool(date in variant_dates[DEFAULT_VARIANTS[0][0]]) if in_cal else False
-        if not in_cal:
+        if date<sessions.min() or date>sessions.max():
+            status='OUTSIDE_VALIDATED_CALENDAR_WINDOW'
+        elif not in_cal:
             status='NOT_A_VALIDATED_EXCHANGE_SESSION'
         elif not observed:
             status='SOURCE_UNAVAILABLE_FOR_EPISODE'
