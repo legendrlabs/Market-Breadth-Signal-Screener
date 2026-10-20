@@ -1,6 +1,6 @@
 import unittest
 import pandas as pd
-from mbss.collectors.quality import validate_dataset
+from mbss.collectors.quality import validate_dataset, breadth_diagnostics
 
 
 class QualityTests(unittest.TestCase):
@@ -52,5 +52,46 @@ class QualityTests(unittest.TestCase):
     def test_infinite_prices_invalid(self):
         self.p.iloc[0,self.p.columns.get_loc('close')]=float('inf')
         self.assertFalse(validate_dataset('spx',self.p,self.meta,self.idx,self.idx[-1])['history_valid'])
+
+    def test_vix_non_xnys_rows_are_audited_not_treated_as_missing_trades(self):
+        observed=pd.DataFrame({'close':20.0},index=self.idx)
+        weekend=pd.DataFrame({'close':-999.0},index=[pd.Timestamp('2020-01-04')])
+        original=pd.concat([observed,weekend]).sort_index()
+        q=validate_dataset('vix',original,self.meta,self.idx,self.idx[-1])
+        self.assertTrue(q['history_valid'])
+        self.assertEqual(q['excluded_non_xnys_session_count'],1)
+        self.assertEqual(q['excluded_non_xnys_dates'],['2020-01-04'])
+        self.assertEqual(q['missing_count'],0)
+        self.assertIn(pd.Timestamp('2020-01-04'),original.index)
+
+    def test_vix_real_xnys_gap_cannot_be_filled_by_non_session_row(self):
+        observed=pd.DataFrame({'close':20.0},index=self.idx).drop(self.idx[4])
+        weekend=pd.DataFrame({'close':20.0},index=[pd.Timestamp('2020-01-04')])
+        q=validate_dataset('vix',pd.concat([observed,weekend]).sort_index(),
+                           self.meta,self.idx,self.idx[-1])
+        self.assertFalse(q['history_valid'])
+        self.assertEqual(q['missing_count'],1)
+        self.assertIn('MISSING_SESSIONS',q['flags'])
+        self.assertEqual(q['excluded_non_xnys_session_count'],1)
+
+    def test_recent_reference_observation_has_dates_counts_and_freshness(self):
+        sessions=pd.bdate_range('2026-01-01',periods=140)
+        p=pd.DataFrame({'advances':70,'declines':30},index=sessions)
+        recent=breadth_diagnostics(p,sessions,sessions[-1])
+        self.assertEqual(recent['observed_session'],str(sessions[-1].date()))
+        self.assertEqual(recent['source_freshness'],'CURRENT')
+        self.assertEqual((recent['advances'],recent['declines']),(70,30))
+        self.assertTrue(recent['ema100_warmup_complete'])
+        self.assertFalse(recent['eligible_for_signal'])
+        stale=breadth_diagnostics(p.drop(sessions[-1]),sessions,sessions[-1])
+        self.assertEqual(stale['source_freshness'],'STALE')
+        self.assertEqual(stale['observed_session'],str(sessions[-2].date()))
+        self.assertIsNone(stale['advances'])
+        self.assertIsNone(stale['breadth_ratio'])
+        self.assertEqual(stale['consecutive_valid_sessions'],0)
+        self.assertFalse(stale['recent_10_complete'])
+        self.assertFalse(stale['ema100_warmup_complete'])
+        self.assertIsNone(stale['zbt_ema10'])
+
 
 if __name__=='__main__': unittest.main()
