@@ -115,7 +115,7 @@ def diagnose_episodes(frame, sessions, reference_dates, source, sha, compare=Non
             if common:
                 overlap['status']='SAME_DATE_COUNTS_COMPARED_NOT_UNIVERSE_CERTIFIED'
             if date in common:
-                overlap['candidate_date']='MATCH' if date not in mismatches else 'MISMATCH'
+                overlap['candidate_date']='MATCH' if str(date.date()) not in mismatches else 'MISMATCH'
         case={'date':raw,'status':status,
               'first_order_model':'6/10 strictly >70%, first rising edge, 10-session cooldown',
               'source_observed_days_in_window':observed,
