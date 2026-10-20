@@ -127,6 +127,10 @@ def collect(destination,start='2000-01-01',timeout=8,aux_breadth=False):
                     continue
             frame.to_csv(destination/(name+'.csv'),index_label='date')
             metadata[name]=new_meta
+    # Publisher HTML is an independent *format*, not an independent provider.
+    # A missing/invalid page never replaces or validates the NYSE XLS signal input.
+    from mbss.collectors.mcclellan_page import collect_publisher_page
+    attempts.append(collect_publisher_page(destination,raw,timeout,opener=urlopen))
     if aux_breadth:
         from mbss.collectors.auxiliary import collect_auxiliary
         attempts.extend(collect_auxiliary(destination,raw,timeout))
