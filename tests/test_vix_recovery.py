@@ -197,9 +197,7 @@ class VixObservedRecoveryTests(unittest.TestCase):
 
     def test_yahoo_observation_reconciles_both_neighbor_cboe_dates(self):
         def opener(request,timeout):
-            if 'finance.yahoo.com' in request.full_url:
-                raise AssertionError('expected chart query host')
-            if 'query1.finance.yahoo.com' in request.full_url:
+            if request.full_url.startswith('https://query1.finance.yahoo.com/'):
                 self.assertIn('%5EVIX',request.full_url)
                 return Response(self.yahoo_fixture())
             raise TimeoutError('FRED provider inaccessible')
